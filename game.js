@@ -60,7 +60,7 @@ const maps = {
     town: {
         width: 20,
         height: 15,
-         [],
+        data: [],
         objects: [],
         npcs: [],
         warps: [
@@ -73,7 +73,7 @@ const maps = {
     house_player: {
         width: 6,
         height: 6,
-         [],
+        data: [],
         objects: [],
         npcs: [{ x: 4, y: 2, dir: 'left', text: "Mom: Don't forget to heal your Pokémon!" }],
         warps: [{ x: 2, y: 5, w: 2, h: 1, target: 'town', tx: 2, ty: 3 }]
@@ -81,7 +81,7 @@ const maps = {
     mart: {
         width: 6,
         height: 6,
-         [],
+        data: [],
         objects: [],
         npcs: [{ x: 3, y: 1, dir: 'down', text: "Clerk: Welcome! Potions are $20." }],
         warps: [{ x: 2, y: 5, w: 2, h: 1, target: 'town', tx: 16, ty: 3 }]
@@ -89,7 +89,7 @@ const maps = {
     center: {
         width: 6,
         height: 6,
-         [],
+        data: [],
         objects: [],
         npcs: [{ x: 3, y: 1, dir: 'down', text: "Nurse Joy: We can heal your Pokémon for free!" }],
         warps: [{ x: 2, y: 5, w: 2, h: 1, target: 'town', tx: 16, ty: 13 }]
@@ -97,7 +97,7 @@ const maps = {
     house_npc: {
         width: 6,
         height: 6,
-         [],
+        data: [],
         objects: [],
         npcs: [{ x: 4, y: 2, dir: 'left', text: "Fisherman: I caught a Magikarp!" }],
         warps: [{ x: 2, y: 5, w: 2, h: 1, target: 'town', tx: 2, ty: 13 }]
