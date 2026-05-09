@@ -9,6 +9,51 @@ const MAP_HEIGHT = 30;
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
+// Sprite paths
+const SPRITE_PATHS = {
+    // Player
+    playerDown: 'player-down.png',
+    playerUp: 'player-up.png',
+    playerLeft: 'player-left.png',
+    playerRight: 'player-right.png',
+    // NPCs
+    npcDown: 'npc-down.png',
+    trainerDown: 'trainer-down.png',
+    // Items
+    pokeball: 'pokeball.png',
+    potion: 'potion.png',
+    berry: 'berry.png',
+    // Tiles
+    grass: 'grass.png',
+    dirtPath: 'dirt-path.png',
+    water: 'water.png',
+    tree: 'tree.png',
+    houseFloor: 'house-floor.png',
+    houseWall: 'house-wall.png',
+    door: 'door.png',
+    counter: 'counter.png',
+    pc: 'pc.png',
+    bookshelf: 'bookshelf.png',
+    flower: 'flower.png',
+    rock: 'rock.png',
+    sand: 'sand.png',
+    bridge: 'bridge.png'
+};
+
+// Pokemon sprite paths (front and back)
+const POKEMON_SPRITES = {
+    pikachu: { front: 'pikachu-front.png', back: 'pikachu-back.png' },
+    charmander: { front: 'charmander-front.png', back: 'charmander-back.png' },
+    squirtle: { front: 'squirtle-front.png', back: 'squirtle-back.png' },
+    bulbasaur: { front: 'bulbasaur-front.png', back: 'bulbasaur-back.png' },
+    rattata: { front: 'rattata-front.png', back: 'rattata-back.png' },
+    pidgey: { front: 'pidgey-front.png', back: 'pidgey-back.png' },
+    caterpie: { front: 'caterpie-front.png', back: 'caterpie-back.png' },
+    zubat: { front: 'zubat-front.png', back: 'zubat-back.png' },
+    geodude: { front: 'geodude-front.png', back: 'geodude-back.png' },
+    machop: { front: 'machop-front.png', back: 'machop-back.png' }
+};
+
 // Tile types
 const TILES = {
     GRASS: 0,
@@ -320,15 +365,68 @@ function startGame() {
 // SPRITE GENERATION (Procedural Pixel Art)
 // ============================================
 let sprites = {};
+let loadedSprites = {}; // For loading external images
 
 function generateSprites() {
-    // Generate all sprites procedurally
+    // Try to load external sprites, fall back to procedural generation if not found
+    loadExternalSprites();
+    
+    // Generate procedural fallbacks
     sprites.player = generatePlayerSprite();
     sprites.npc = generateNPCSprite();
     sprites.trainer = generateTrainerSprite();
     sprites.items = generateItemSprites();
     sprites.pokemon = generatePokemonSprites();
     sprites.buildings = generateBuildingSprites();
+}
+
+function loadExternalSprites() {
+    // Load player sprites
+    loadedSprites.playerDown = loadImage(SPRITE_PATHS.playerDown);
+    loadedSprites.playerUp = loadImage(SPRITE_PATHS.playerUp);
+    loadedSprites.playerLeft = loadImage(SPRITE_PATHS.playerLeft);
+    loadedSprites.playerRight = loadImage(SPRITE_PATHS.playerRight);
+    
+    // Load NPC sprites
+    loadedSprites.npcDown = loadImage(SPRITE_PATHS.npcDown);
+    loadedSprites.trainerDown = loadImage(SPRITE_PATHS.trainerDown);
+    
+    // Load item sprites
+    loadedSprites.pokeball = loadImage(SPRITE_PATHS.pokeball);
+    loadedSprites.potion = loadImage(SPRITE_PATHS.potion);
+    loadedSprites.berry = loadImage(SPRITE_PATHS.berry);
+    
+    // Load tile sprites
+    loadedSprites.grass = loadImage(SPRITE_PATHS.grass);
+    loadedSprites.dirtPath = loadImage(SPRITE_PATHS.dirtPath);
+    loadedSprites.water = loadImage(SPRITE_PATHS.water);
+    loadedSprites.tree = loadImage(SPRITE_PATHS.tree);
+    loadedSprites.houseFloor = loadImage(SPRITE_PATHS.houseFloor);
+    loadedSprites.houseWall = loadImage(SPRITE_PATHS.houseWall);
+    loadedSprites.door = loadImage(SPRITE_PATHS.door);
+    loadedSprites.counter = loadImage(SPRITE_PATHS.counter);
+    loadedSprites.pc = loadImage(SPRITE_PATHS.pc);
+    loadedSprites.bookshelf = loadImage(SPRITE_PATHS.bookshelf);
+    loadedSprites.flower = loadImage(SPRITE_PATHS.flower);
+    loadedSprites.rock = loadImage(SPRITE_PATHS.rock);
+    loadedSprites.sand = loadImage(SPRITE_PATHS.sand);
+    loadedSprites.bridge = loadImage(SPRITE_PATHS.bridge);
+    
+    // Load Pokemon sprites
+    for (const [pokemon, paths] of Object.entries(POKEMON_SPRITES)) {
+        loadedSprites[`${pokemon}Front`] = loadImage(paths.front);
+        loadedSprites[`${pokemon}Back`] = loadImage(paths.back);
+    }
+}
+
+function loadImage(path) {
+    const img = new Image();
+    img.src = path;
+    return img;
+}
+
+function isImageLoaded(img) {
+    return img && img.complete && img.naturalWidth > 0;
 }
 
 function generatePlayerSprite() {
@@ -1564,20 +1662,44 @@ function renderTile(tile, x, y) {
     const screenX = Math.floor(x * TILE_SIZE - camera.x);
     const screenY = Math.floor(y * TILE_SIZE - camera.y);
     
-    const colors = TILE_COLORS[tile] || ['#808080', '#707070', '#606060', '#505050'];
+    // Try to use external sprite first
+    let spriteImg = null;
+    switch(tile) {
+        case TILES.GRASS: spriteImg = loadedSprites.grass; break;
+        case TILES.DIRT_PATH: spriteImg = loadedSprites.dirtPath; break;
+        case TILES.WATER: spriteImg = loadedSprites.water; break;
+        case TILES.TREE: spriteImg = loadedSprites.tree; break;
+        case TILES.HOUSE_FLOOR: spriteImg = loadedSprites.houseFloor; break;
+        case TILES.HOUSE_WALL: spriteImg = loadedSprites.houseWall; break;
+        case TILES.DOOR: spriteImg = loadedSprites.door; break;
+        case TILES.COUNTER: spriteImg = loadedSprites.counter; break;
+        case TILES.PC: spriteImg = loadedSprites.pc; break;
+        case TILES.BOOKSHELF: spriteImg = loadedSprites.bookshelf; break;
+        case TILES.FLOWER: spriteImg = loadedSprites.flower; break;
+        case TILES.ROCK: spriteImg = loadedSprites.rock; break;
+        case TILES.SAND: spriteImg = loadedSprites.sand; break;
+        case TILES.BRIDGE: spriteImg = loadedSprites.bridge; break;
+    }
     
-    // Draw pixel art tile (4x4 pattern scaled up)
-    const pixelSize = TILE_SIZE / 4;
-    for (let py = 0; py < 4; py++) {
-        for (let px = 0; px < 4; px++) {
-            const colorIndex = (py * 4 + px) % colors.length;
-            ctx.fillStyle = colors[colorIndex];
-            ctx.fillRect(
-                Math.floor(screenX + px * pixelSize),
-                Math.floor(screenY + py * pixelSize),
-                Math.ceil(pixelSize),
-                Math.ceil(pixelSize)
-            );
+    // Use external sprite if loaded, otherwise fall back to procedural
+    if (isImageLoaded(spriteImg)) {
+        ctx.drawImage(spriteImg, screenX, screenY, TILE_SIZE, TILE_SIZE);
+    } else {
+        const colors = TILE_COLORS[tile] || ['#808080', '#707070', '#606060', '#505050'];
+        
+        // Draw pixel art tile (4x4 pattern scaled up)
+        const pixelSize = TILE_SIZE / 4;
+        for (let py = 0; py < 4; py++) {
+            for (let px = 0; px < 4; px++) {
+                const colorIndex = (py * 4 + px) % colors.length;
+                ctx.fillStyle = colors[colorIndex];
+                ctx.fillRect(
+                    Math.floor(screenX + px * pixelSize),
+                    Math.floor(screenY + py * pixelSize),
+                    Math.ceil(pixelSize),
+                    Math.ceil(pixelSize)
+                );
+            }
         }
     }
 }
@@ -1597,7 +1719,13 @@ function renderEntities() {
         if (npc.map === (currentInterior || currentMap)) {
             const screenX = npc.x * TILE_SIZE - camera.x;
             const screenY = npc.y * TILE_SIZE - camera.y;
-            renderSprite(sprites.npc.down, screenX, screenY);
+            
+            // Try external sprite first
+            if (isImageLoaded(loadedSprites.npcDown)) {
+                ctx.drawImage(loadedSprites.npcDown, screenX, screenY, TILE_SIZE, TILE_SIZE);
+            } else {
+                renderSprite(sprites.npc.down, screenX, screenY);
+            }
         }
     }
     
@@ -1606,7 +1734,13 @@ function renderEntities() {
         if (trainer.map === currentMap && !trainer.defeated) {
             const screenX = trainer.x * TILE_SIZE - camera.x;
             const screenY = trainer.y * TILE_SIZE - camera.y;
-            renderSprite(sprites.trainer.down, screenX, screenY);
+            
+            // Try external sprite first
+            if (isImageLoaded(loadedSprites.trainerDown)) {
+                ctx.drawImage(loadedSprites.trainerDown, screenX, screenY, TILE_SIZE, TILE_SIZE);
+            } else {
+                renderSprite(sprites.trainer.down, screenX, screenY);
+            }
         }
     }
     
@@ -1614,15 +1748,27 @@ function renderEntities() {
     const playerScreenX = player.fromX * TILE_SIZE - camera.x + (player.x - player.fromX) * player.moveProgress * TILE_SIZE;
     const playerScreenY = player.fromY * TILE_SIZE - camera.y + (player.y - player.fromY) * player.moveProgress * TILE_SIZE;
     
-    let playerSprite;
+    let playerSpriteImg = null;
     switch(player.direction) {
-        case 'up': playerSprite = sprites.player.up; break;
-        case 'left': playerSprite = sprites.player.left; break;
-        case 'right': playerSprite = sprites.player.right; break;
-        default: playerSprite = sprites.player.down;
+        case 'up': playerSpriteImg = loadedSprites.playerUp; break;
+        case 'left': playerSpriteImg = loadedSprites.playerLeft; break;
+        case 'right': playerSpriteImg = loadedSprites.playerRight; break;
+        default: playerSpriteImg = loadedSprites.playerDown;
     }
     
-    renderSprite(playerSprite, playerScreenX, playerScreenY);
+    // Try external sprite first
+    if (isImageLoaded(playerSpriteImg)) {
+        ctx.drawImage(playerSpriteImg, playerScreenX, playerScreenY, TILE_SIZE, TILE_SIZE);
+    } else {
+        let playerSprite;
+        switch(player.direction) {
+            case 'up': playerSprite = sprites.player.up; break;
+            case 'left': playerSprite = sprites.player.left; break;
+            case 'right': playerSprite = sprites.player.right; break;
+            default: playerSprite = sprites.player.down;
+        }
+        renderSprite(playerSprite, playerScreenX, playerScreenY);
+    }
 }
 
 function renderSprite(sprite, x, y) {
@@ -1647,6 +1793,21 @@ function renderSprite(sprite, x, y) {
 }
 
 function renderItem(type, x, y) {
+    // Try external sprite first
+    let spriteImg = null;
+    switch(type) {
+        case 'pokeball': spriteImg = loadedSprites.pokeball; break;
+        case 'potion': spriteImg = loadedSprites.potion; break;
+        case 'berry': spriteImg = loadedSprites.berry; break;
+    }
+    
+    if (isImageLoaded(spriteImg)) {
+        const bob = Math.sin(Date.now() / 200) * 3;
+        ctx.drawImage(spriteImg, x - TILE_SIZE/2, y - TILE_SIZE/2 + bob, TILE_SIZE, TILE_SIZE);
+        return;
+    }
+    
+    // Fall back to procedural sprite
     const sprite = sprites.items[type] || sprites.items.pokeball;
     if (!sprite) return;
     
@@ -1692,23 +1853,37 @@ function renderBattle() {
     ctx.ellipse(200, 250, 120, 40, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    // Enemy Pokemon (top right)
+    // Enemy Pokemon (top right) - front view
     if (battleState.enemyPokemon) {
-        const sprite = sprites.pokemon[battleState.enemyPokemon.species];
-        if (sprite) {
-            renderSprite(sprite, 550, 150);
+        const species = battleState.enemyPokemon.species;
+        const spriteImg = loadedSprites[`${species}Front`];
+        
+        if (isImageLoaded(spriteImg)) {
+            ctx.drawImage(spriteImg, 550, 150, 96, 96);
+        } else {
+            const sprite = sprites.pokemon[species];
+            if (sprite) {
+                renderSprite(sprite, 550, 150);
+            }
         }
     }
     
     // Player Pokemon (bottom left) - back view
     if (battleState.playerPokemon) {
-        const sprite = sprites.pokemon[battleState.playerPokemon.species];
-        if (sprite) {
-            // Flip horizontally for back view
-            ctx.save();
-            ctx.scale(-1, 1);
-            renderSprite(sprite, -250, 350);
-            ctx.restore();
+        const species = battleState.playerPokemon.species;
+        const spriteImg = loadedSprites[`${species}Back`];
+        
+        if (isImageLoaded(spriteImg)) {
+            ctx.drawImage(spriteImg, 150, 350, 96, 96);
+        } else {
+            const sprite = sprites.pokemon[species];
+            if (sprite) {
+                // Flip horizontally for back view
+                ctx.save();
+                ctx.scale(-1, 1);
+                renderSprite(sprite, -250, 350);
+                ctx.restore();
+            }
         }
     }
 }
