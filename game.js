@@ -415,11 +415,17 @@ function updateCamera() {
     camera.y = Math.max(0, Math.min(camera.y, maxY));
 }
 
-// Drawing Functions
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = CANVAS_WIDTH;
-canvas.height = CANVAS_HEIGHT;
+// Drawing Functions - initialized when game starts
+let canvas = null;
+let ctx = null;
+
+function initCanvas() {
+    if (canvas) return;
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+}
 
 function draw() {
     // Clear Screen
@@ -607,6 +613,13 @@ function updateUI() {
     // Triggered by battle logic to refresh state, mainly handled in draw loop for simplicity
 }
 
-// Initialization
-initMaps();
-requestAnimationFrame(gameLoop);
+// Initialization - will be called when game starts
+let initialized = false;
+
+function initGame() {
+    if (initialized) return;
+    initialized = true;
+    initCanvas();
+    initMaps();
+    requestAnimationFrame(gameLoop);
+}
