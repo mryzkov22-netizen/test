@@ -234,6 +234,45 @@
             border-radius: 6px;
             font-size: 11px;
         }
+        
+        .location-name {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            display: none;
+            animation: fadeOut 2s ease 1s forwards;
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
+        
+        .warp-indicator {
+            position: absolute;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 0, 0.9);
+            color: black;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: none;
+            animation: blink 0.5s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body>
@@ -243,6 +282,8 @@
             <div class="controls-hint">
                 WASD/Arrows: Move | Enter: Interact | Esc: Menu
             </div>
+            <div class="location-name" id="location-name"></div>
+            <div class="warp-indicator" id="warp-indicator">→ AREA TRANSITION →</div>
             <div class="dialog-box" id="dialog-box">
                 <div class="dialog-name" id="dialog-name"></div>
                 <div class="dialog-text" id="dialog-text"></div>
