@@ -768,16 +768,14 @@
 
     </script>
 
+    <script src="game.js"></script>
+    
     <script>
-        // Initialize game when Start is pressed - using the Game class from index.html
-        let game;
+        // Initialize game when Start is pressed - using the game engine from game.js
         function startGame() {
             document.getElementById('start-screen').style.display = 'none';
-            game = new Game();
-            // Game constructor already calls initWorld, initAssets, and starts loop
+            initGame();
         }
     </script>
-
-    <script src="game.js"></script>
 </body>
 </html>
