@@ -25,7 +25,15 @@ class Game {
             fromY: 7,
             toX: 10,
             toY: 7,
-            speed: 0.15
+            speed: 0.2
+        };
+        
+        // Camera
+        this.camera = {
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0
         };
         
         // Player's Pokemon team
@@ -42,7 +50,8 @@ class Game {
         // Input handling
         this.keys = {};
         this.lastKeyTime = 0;
-        this.keyDelay = 150; // ms between key presses
+        this.keyDelay = 120; // ms between key presses
+        this.canChangeDirection = true;
         
         // NPCs and trainers
         this.npcs = [];
@@ -216,28 +225,45 @@ class Game {
                 // Default to grass
                 map.tiles[y][x] = baseTile;
                 
-                // Add dirt paths
+                // Add dirt paths - main cross path
                 if (y === 7 || x === 10) {
                     map.tiles[y][x] = 'dirt-path';
                 }
                 
+                // Add bridge over water areas (visual only)
+                if (y === 7 && x >= 5 && x <= 7) {
+                    map.tiles[y][x] = 'bridge';
+                }
+                
                 // Add some decorative elements
                 if ((x === 0 || x === map.width - 1 || y === 0 || y === map.height - 1) && 
-                    map.tiles[y][x] !== 'dirt-path') {
+                    map.tiles[y][x] !== 'dirt-path' && map.tiles[y][x] !== 'bridge') {
                     if (Math.random() < 0.3) {
                         map.tiles[y][x] = 'flower';
+                    } else if (Math.random() < 0.2) {
+                        map.tiles[y][x] = 'tree';
                     }
                 }
             }
         }
         
-        // Clear areas for houses
+        // Clear areas for houses and add door tiles
         map.houses.forEach(house => {
             for (let hy = house.y; hy < house.y + house.height; hy++) {
                 for (let hx = house.x; hx < house.x + house.width; hx++) {
                     if (hy < map.height && hx < map.width) {
                         map.tiles[hy][hx] = 'dirt-path';
                     }
+                }
+            }
+            // Add door tile in front of house
+            if (house.doorY < map.height && house.doorX < map.width) {
+                map.tiles[house.doorY][house.doorX] = 'door';
+            }
+            // Add path from door to main path
+            for (let py = house.doorY + 1; py <= 7 && py < map.height; py++) {
+                if (py < map.height && house.doorX < map.width) {
+                    map.tiles[py][house.doorX] = 'dirt-path';
                 }
             }
         });
@@ -252,7 +278,7 @@ class Game {
             for (let x = 0; x < map.width; x++) {
                 map.tiles[y][x] = 'grass';
                 
-                // Main path down the center
+                // Main path down the center - wider path
                 if (x >= 8 && x <= 11) {
                     map.tiles[y][x] = 'dirt-path';
                 }
@@ -262,9 +288,13 @@ class Game {
                     map.tiles[y][x] = 'tree';
                 }
                 
-                // Some rocks
-                if ((x < 6 || x > 13) && Math.random() < 0.05) {
-                    map.tiles[y][x] = 'rock';
+                // Some rocks and flowers
+                if ((x < 6 || x > 13) && map.tiles[y][x] === 'grass') {
+                    if (Math.random() < 0.05) {
+                        map.tiles[y][x] = 'rock';
+                    } else if (Math.random() < 0.08) {
+                        map.tiles[y][x] = 'flower';
+                    }
                 }
             }
         }
@@ -277,18 +307,36 @@ class Game {
         for (let y = 0; y < map.height; y++) {
             map.tiles[y] = [];
             for (let x = 0; x < map.width; x++) {
-                map.tiles[y][x] = 'dirt-path';
+                map.tiles[y][x] = 'grass';
                 
-                // Buildings areas
-                if ((y >= 2 && y <= 6 && x >= 2 && x <= 7) ||
-                    (y >= 2 && y <= 6 && x >= 11 && x <= 16) ||
-                    (y >= 8 && y <= 11 && x >= 7 && x <= 11)) {
+                // Main paths
+                if (y === 7 || x === 10) {
                     map.tiles[y][x] = 'dirt-path';
                 }
                 
-                // Decorative flowers
-                if (Math.random() < 0.08 && map.tiles[y][x] === 'dirt-path') {
-                    map.tiles[y][x] = 'flower';
+                // Building areas - clear for buildings
+                if ((y >= 2 && y <= 6 && x >= 2 && x <= 7) ||
+                    (y >= 2 && y <= 6 && x >= 11 && x <= 16) ||
+                    (y >= 8 && y <= 11 && x >= 7 && x <= 11)) {
+                    map.tiles[y][x] = 'house-floor';
+                }
+                
+                // Add door tiles in front of buildings
+                if (map.houses) {
+                    for (const house of map.houses) {
+                        if (x === house.doorX && y === house.doorY) {
+                            map.tiles[y][x] = 'door';
+                        }
+                    }
+                }
+                
+                // Decorative flowers and trees
+                if (map.tiles[y][x] === 'grass' && Math.random() < 0.1) {
+                    if (Math.random() < 0.5) {
+                        map.tiles[y][x] = 'flower';
+                    } else {
+                        map.tiles[y][x] = 'tree';
+                    }
                 }
             }
         }
@@ -310,8 +358,17 @@ class Game {
                 }
                 
                 // More trees in forest
-                if (map.tiles[y][x] === 'grass' && Math.random() < 0.2) {
+                if (map.tiles[y][x] === 'grass' && Math.random() < 0.25) {
                     map.tiles[y][x] = 'tree';
+                }
+                
+                // Some rocks and flowers
+                if (map.tiles[y][x] === 'grass') {
+                    if (Math.random() < 0.05) {
+                        map.tiles[y][x] = 'rock';
+                    } else if (Math.random() < 0.08) {
+                        map.tiles[y][x] = 'flower';
+                    }
                 }
             }
         }
@@ -326,14 +383,28 @@ class Game {
             for (let x = 0; x < map.width; x++) {
                 map.tiles[y][x] = 'sand';
                 
-                // Rocky areas
-                if (Math.random() < 0.1) {
+                // Rocky areas - more common in mountain town
+                if (Math.random() < 0.15) {
                     map.tiles[y][x] = 'rock';
                 }
                 
                 // Paths
                 if (y === 7 || x === 10) {
                     map.tiles[y][x] = 'dirt-path';
+                }
+                
+                // Add door tiles for houses
+                if (map.houses) {
+                    for (const house of map.houses) {
+                        if (x === house.doorX && y === house.doorY) {
+                            map.tiles[y][x] = 'door';
+                        }
+                    }
+                }
+                
+                // Some trees on edges
+                if ((x === 0 || x === map.width - 1) && map.tiles[y][x] === 'sand' && Math.random() < 0.1) {
+                    map.tiles[y][x] = 'tree';
                 }
             }
         }
@@ -633,6 +704,8 @@ class Game {
             this.lastKeyTime = now;
             
             if (this.currentState === 'ROAMING') {
+                // Allow turning in place even with collision
+                this.handleDirection(e.key);
                 this.handleMovement(e.key);
             } else if (this.currentState === 'DIALOG') {
                 this.closeDialog();
@@ -650,6 +723,38 @@ class Game {
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
         });
+    }
+    
+    handleDirection(key) {
+        let newDirection = null;
+        
+        switch(key) {
+            case 'ArrowUp':
+            case 'w':
+            case 'W':
+                newDirection = 'up';
+                break;
+            case 'ArrowDown':
+            case 's':
+            case 'S':
+                newDirection = 'down';
+                break;
+            case 'ArrowLeft':
+            case 'a':
+            case 'A':
+                newDirection = 'left';
+                break;
+            case 'ArrowRight':
+            case 'd':
+            case 'D':
+                newDirection = 'right';
+                break;
+            default:
+                return;
+        }
+        
+        // Always allow changing direction, even if not moving
+        this.player.direction = newDirection;
     }
     
     handleMovement(key) {
@@ -752,8 +857,8 @@ class Game {
             case 'right': checkX++; break;
         }
         
-        // Check for houses
-        if (map.houses) {
+        // Check for houses - look for door tile in front of player
+        if (map.houses && !map.isInterior) {
             for (const house of map.houses) {
                 if (checkX === house.doorX && checkY === house.doorY) {
                     this.enterHouse(house);
@@ -762,7 +867,20 @@ class Game {
             }
         }
         
-        // Check for NPCs
+        // Check for house exit when inside
+        if (map.isInterior && this.currentHouse) {
+            if (this.player.x === this.currentHouse.exitX && this.player.y === this.currentHouse.exitY) {
+                // Player is at exit, check if trying to go out
+                if (this.player.direction === 'down' || 
+                    (this.player.direction === 'up' && checkY < this.player.y) ||
+                    (this.player.direction === 'down' && checkY > this.player.y)) {
+                    this.leaveHouse();
+                    return;
+                }
+            }
+        }
+        
+        // Check for NPCs - expanded range for interaction
         const npcsInMap = this.npcs.filter(npc => npc.map === this.currentMap);
         for (const npc of npcsInMap) {
             if (npc.x === checkX && npc.y === checkY) {
@@ -771,7 +889,7 @@ class Game {
             }
         }
         
-        // Check for trainers
+        // Check for trainers - expanded range for interaction
         const trainersInMap = this.trainers.filter(trainer => trainer.map === this.currentMap && !trainer.defeated);
         for (const trainer of trainersInMap) {
             if (trainer.x === checkX && trainer.y === checkY) {
@@ -788,9 +906,10 @@ class Game {
         if (itemIndex !== -1) {
             const item = this.interactables[itemIndex];
             this.pickupItem(item, itemIndex);
+            return;
         }
         
-        // Check for warps
+        // Check for warps - visual indicator on warp tiles
         if (map.warps) {
             for (const warp of map.warps) {
                 if (checkX === warp.x && checkY === warp.y) {
@@ -840,6 +959,12 @@ class Game {
     }
     
     changeMap(targetMap, targetX, targetY) {
+        const map = this.maps[targetMap];
+        if (map) {
+            // Show location name
+            this.showLocationName(map.name);
+        }
+        
         this.currentMap = targetMap;
         this.player.x = targetX;
         this.player.y = targetY;
@@ -848,6 +973,28 @@ class Game {
         this.player.toX = targetX;
         this.player.toY = targetY;
         this.player.isMoving = false;
+        
+        // Reset camera immediately to avoid smooth transition during map change
+        this.camera.x = Math.max(0, Math.min(
+            targetX * this.TILE_SIZE - this.canvas.width / 2 + this.TILE_SIZE / 2,
+            map.width * this.TILE_SIZE - this.canvas.width
+        ));
+        this.camera.y = Math.max(0, Math.min(
+            targetY * this.TILE_SIZE - this.canvas.height / 2 + this.TILE_SIZE / 2,
+            map.height * this.TILE_SIZE - this.canvas.height
+        ));
+    }
+    
+    showLocationName(name) {
+        const locationEl = document.getElementById('location-name');
+        if (locationEl) {
+            locationEl.textContent = name;
+            locationEl.style.display = 'block';
+            // Reset animation
+            locationEl.style.animation = 'none';
+            locationEl.offsetHeight; // Trigger reflow
+            locationEl.style.animation = 'fadeOut 2s ease 1s forwards';
+        }
     }
     
     pickupItem(item, index) {
@@ -949,6 +1096,25 @@ class Game {
             }
         }
         
+        // Update camera with smooth interpolation
+        const map = this.maps[this.currentMap];
+        if (map) {
+            const targetCameraX = Math.max(0, Math.min(
+                this.player.x * this.TILE_SIZE - this.canvas.width / 2 + this.TILE_SIZE / 2,
+                map.width * this.TILE_SIZE - this.canvas.width
+            ));
+            const targetCameraY = Math.max(0, Math.min(
+                this.player.y * this.TILE_SIZE - this.canvas.height / 2 + this.TILE_SIZE / 2,
+                map.height * this.TILE_SIZE - this.canvas.height
+            ));
+            
+            // Smooth camera movement (lerp)
+            this.camera.targetX = targetCameraX;
+            this.camera.targetY = targetCameraY;
+            this.camera.x += (targetCameraX - this.camera.x) * 0.1;
+            this.camera.y += (targetCameraY - this.camera.y) * 0.1;
+        }
+        
         // Update battle if active
         if (this.battle && this.currentState === 'BATTLE') {
             this.battle.update(deltaTime);
@@ -963,17 +1129,32 @@ class Game {
         if (map.warps) {
             for (const warp of map.warps) {
                 if (this.player.x === warp.x && this.player.y === warp.y) {
-                    this.changeMap(warp.targetMap, warp.targetX, warp.targetY);
+                    // Show warp indicator briefly before transitioning
+                    this.showWarpIndicator();
+                    setTimeout(() => {
+                        this.changeMap(warp.targetMap, warp.targetX, warp.targetY);
+                    }, 300);
                     return;
                 }
             }
         }
         
-        // Check for house exits
+        // Check for house exits - auto exit when walking to door position
         if (map.isInterior && this.currentHouse) {
             if (this.player.x === this.currentHouse.exitX && this.player.y === this.currentHouse.exitY) {
-                // Player is at the exit position but inside, they need to walk out
+                // Player walked onto exit tile, leave the house
+                this.leaveHouse();
             }
+        }
+    }
+    
+    showWarpIndicator() {
+        const warpEl = document.getElementById('warp-indicator');
+        if (warpEl) {
+            warpEl.style.display = 'block';
+            setTimeout(() => {
+                warpEl.style.display = 'none';
+            }, 500);
         }
     }
     
@@ -985,15 +1166,9 @@ class Game {
         const map = this.maps[this.currentMap];
         if (!map) return;
         
-        // Calculate camera position (centered on player)
-        const cameraX = Math.max(0, Math.min(
-            this.player.x * this.TILE_SIZE - this.canvas.width / 2 + this.TILE_SIZE / 2,
-            map.width * this.TILE_SIZE - this.canvas.width
-        ));
-        const cameraY = Math.max(0, Math.min(
-            this.player.y * this.TILE_SIZE - this.canvas.height / 2 + this.TILE_SIZE / 2,
-            map.height * this.TILE_SIZE - this.canvas.height
-        ));
+        // Use smoothed camera position
+        const cameraX = this.camera.x;
+        const cameraY = this.camera.y;
         
         // Render tiles
         for (let y = 0; y < map.height; y++) {
@@ -1075,7 +1250,9 @@ class Game {
         // Render house walls around the perimeter
         for (let x = house.x; x < house.x + house.width; x++) {
             // Top wall
-            this.renderTile(x, house.y - 1, 'house-wall', cameraX, cameraY);
+            if (house.y - 1 >= 0) {
+                this.renderTile(x, house.y - 1, 'house-wall', cameraX, cameraY);
+            }
             // Bottom wall
             if (house.y + house.height < this.maps[this.currentMap].height) {
                 this.renderTile(x, house.y + house.height, 'house-wall', cameraX, cameraY);
@@ -1084,7 +1261,9 @@ class Game {
         
         for (let y = house.y; y < house.y + house.height; y++) {
             // Left wall
-            this.renderTile(house.x - 1, y, 'house-wall', cameraX, cameraY);
+            if (house.x - 1 >= 0) {
+                this.renderTile(house.x - 1, y, 'house-wall', cameraX, cameraY);
+            }
             // Right wall
             if (house.x + house.width < this.maps[this.currentMap].width) {
                 this.renderTile(house.x + house.width, y, 'house-wall', cameraX, cameraY);
@@ -1118,7 +1297,18 @@ class Game {
         const sprite = this.sprites[spriteName];
         
         if (sprite) {
-            this.ctx.drawImage(sprite, screenX, screenY, this.TILE_SIZE, this.TILE_SIZE);
+            // Flip sprite horizontally when moving left
+            if (this.player.direction === 'left') {
+                this.ctx.save();
+                this.ctx.translate(screenX + this.TILE_SIZE, screenY);
+                this.ctx.scale(-1, 1);
+                this.ctx.drawImage(sprite, 0, 0, this.TILE_SIZE, this.TILE_SIZE);
+                this.ctx.restore();
+            } else if (this.player.direction === 'right') {
+                this.ctx.drawImage(sprite, screenX, screenY, this.TILE_SIZE, this.TILE_SIZE);
+            } else {
+                this.ctx.drawImage(sprite, screenX, screenY, this.TILE_SIZE, this.TILE_SIZE);
+            }
         } else {
             // Fallback
             this.ctx.fillStyle = '#ff0000';
