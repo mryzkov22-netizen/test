@@ -766,13 +766,16 @@
             }
         }
 
+    </script>
+
+    <script>
+        // Initialize game when Start is pressed - using the Game class from index.html
         let game;
         function startGame() {
             document.getElementById('start-screen').style.display = 'none';
             game = new Game();
-            game.state = 'ROAM';
+            // Game constructor already calls initWorld, initAssets, and starts loop
         }
-
     </script>
 
     <script src="game.js"></script>
