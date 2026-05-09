@@ -164,7 +164,8 @@ function startBattle(trainer) {
     battleState.active = true;
     battleState.turn = 'player';
     battleState.menu = 'main';
-    battleState.log = `Wild ${trainer.name} appeared!`;
+    battleState.trainer = trainer; // Store reference to the trainer NPC
+    battleState.log = `${trainer.text.split(':')[0]} sent out a Pokémon!`;
 
     // Simple enemy generation based on trainer ID or random
     const enemies = [
@@ -173,9 +174,6 @@ function startBattle(trainer) {
         { name: 'Zubat', level: 5, maxHp: 16, hp: 16, type: 'poison', moves: ['Leech Life', 'Supersonic'] }
     ];
     battleState.enemy = enemies[Math.floor(Math.random() * enemies.length)];
-
-    // Reset player HP for demo purposes if low (optional)
-    // player.team[0].hp = player.team[0].maxHp;
 }
 
 function handleBattleInput() {
@@ -245,12 +243,11 @@ function enemyTurn() {
 function endBattle(ranAway) {
     battleState.active = false;
     currentState = STATE.ROAMING;
-    // Remove trainer from map if defeated (simplified: just reset position for demo)
-    // In a full game, you'd flag the trainer as defeated
-    if (!ranAway) {
-        // Find the trainer object and move them or flag them
-        const currentMapData = maps[currentMap];
-        currentMapData.npcs = currentMapData.npcs.filter(n => !n.battle || n.x !== battleState.enemy.x);
+    
+    // Mark trainer as defeated if player won
+    if (!ranAway && battleState.trainer) {
+        battleState.trainer.battle = false;
+        battleState.trainer.text = battleState.trainer.text.split(':')[0] + ": You're strong!";
     }
 }
 
