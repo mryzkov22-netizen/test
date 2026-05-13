@@ -46,8 +46,10 @@ function playMusic(trackName) {
 function getMusicForMap(mapKey) {
     if (mapKey.includes('town') || mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym')) {
         return 'town';
-    } else {
+    } else if (mapKey.includes('route') || mapKey.includes('cave')) {
         return 'route';
+    } else {
+        return 'town'; // Default to town music for unknown maps
     }
 }
 
@@ -1068,8 +1070,9 @@ function executePlayerMove(moveName) {
 
     if (!move) {
         battleState.animating = false;
-        battleState.turn = 'enemy';
-        enemyTurn();
+        battleState.turn = 'player';
+        battleState.phase = 'menu';
+        updateBattleUI();
         return;
     }
 
@@ -1149,76 +1152,76 @@ function enemyTurn() {
     const moveName = enemyPkmn.moves[Math.floor(Math.random() * enemyPkmn.moves.length)];
     const move = MOVE_DATA[moveName];
 
-    setTimeout(() => {
-        // Check accuracy
-        if (Math.random() * 100 > move.accuracy) {
-            queueBattleMessage(`${enemyPkmn.name}'s attack missed!`);
-            processBattleMessages();
+    // Check accuracy
+    if (Math.random() * 100 > move.accuracy) {
+        queueBattleMessage(`${enemyPkmn.name}'s attack missed!`);
+        processBattleMessages();
+        setTimeout(() => {
+            battleState.animating = false;
+            battleState.turn = 'player';
+            battleState.phase = 'menu';
+            updateBattleUI();
+        }, 2000);
+        return;
+    }
+
+    const result = calculateDamage(enemyPkmn, playerPkmn, move);
+
+    animateAttack('enemy', () => {
+        queueBattleMessage(`${enemyPkmn.name} used ${moveName}!`);
+        
+        if (result.effective > 1) {
+            queueBattleMessage("It's super effective!");
+        } else if (result.effective < 1 && result.effective > 0) {
+            queueBattleMessage("It's not very effective...");
+        }
+
+        processBattleMessages();
+
+        // Apply damage
+        playerPkmn.hp = Math.max(0, playerPkmn.hp - result.damage);
+        updateBattleUI();
+
+        // Check if player pokemon fainted
+        if (playerPkmn.hp <= 0) {
+            setTimeout(() => {
+                queueBattleMessage(`${playerPkmn.name} fainted!`);
+                processBattleMessages();
+
+                setTimeout(() => {
+                    // Check for other pokemon
+                    const availablePokemon = player.party.filter(p => p.hp > 0);
+                    if (availablePokemon.length > 0) {
+                        // Switch pokemon
+                        battleState.playerPokemon = availablePokemon[0];
+                        updateBattleUI();
+                        queueBattleMessage(`Go! ${battleState.playerPokemon.name}!`);
+                        processBattleMessages();
+                        setTimeout(() => {
+                            battleState.animating = false;
+                            battleState.turn = 'player';
+                            battleState.phase = 'menu';
+                            updateBattleUI();
+                        }, 2000);
+                    } else {
+                        // All pokemon fainted - lose
+                        queueBattleMessage('You have no more Pokemon!');
+                        processBattleMessages();
+                        setTimeout(() => {
+                            endBattle(false);
+                        }, 2000);
+                    }
+                }, 2000);
+            }, 500);
+        } else {
             setTimeout(() => {
                 battleState.animating = false;
                 battleState.turn = 'player';
                 battleState.phase = 'menu';
                 updateBattleUI();
             }, 2000);
-            return;
         }
-
-        const result = calculateDamage(enemyPkmn, playerPkmn, move);
-
-        animateAttack('enemy', () => {
-            queueBattleMessage(`${enemyPkmn.name} used ${moveName}!`);
-            
-            if (result.effective > 1) {
-                queueBattleMessage("It's super effective!");
-            } else if (result.effective < 1 && result.effective > 0) {
-                queueBattleMessage("It's not very effective...");
-            }
-
-            processBattleMessages();
-
-            // Apply damage
-            playerPkmn.hp = Math.max(0, playerPkmn.hp - result.damage);
-            updateBattleUI();
-
-            // Check if player pokemon fainted
-            if (playerPkmn.hp <= 0) {
-                setTimeout(() => {
-                    queueBattleMessage(`${playerPkmn.name} fainted!`);
-                    processBattleMessages();
-
-                    setTimeout(() => {
-                        // Check for other pokemon
-                        const availablePokemon = player.party.filter(p => p.hp > 0);
-                        if (availablePokemon.length > 0) {
-                            // Switch pokemon
-                            battleState.playerPokemon = availablePokemon[0];
-                            updateBattleUI();
-                            queueBattleMessage(`Go! ${battleState.playerPokemon.name}!`);
-                            processBattleMessages();
-                            setTimeout(() => {
-                                battleState.animating = false;
-                                enemyTurn(); // Enemy attacks again after switch
-                            }, 2000);
-                        } else {
-                            // All pokemon fainted - lose
-                            queueBattleMessage('You have no more Pokemon!');
-                            processBattleMessages();
-                            setTimeout(() => {
-                                endBattle(false);
-                            }, 2000);
-                        }
-                    }, 2000);
-                }, 500);
-            } else {
-                setTimeout(() => {
-                    battleState.animating = false;
-                    battleState.turn = 'player';
-                    battleState.phase = 'menu';
-                    updateBattleUI();
-                }, 2000);
-            }
-        });
-    }, 1000);
+    });
 }
 
 // Animate attack - simplified without DOM elements since we render on canvas
@@ -1318,7 +1321,7 @@ function render() {
         }
     }
 
-    // Draw objects - handle multi-tile objects properly
+    // Draw objects - handle multi-tile objects properly and ensure tiles are drawn beneath items
     if (map.objects) {
         for (const obj of map.objects) {
             if (obj.sprite && sprites[obj.sprite]) {
@@ -1326,9 +1329,19 @@ function render() {
                 // For counters and other multi-tile objects, draw across multiple tiles
                 ctx.drawImage(sprites[obj.sprite], obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE * width, TILE_SIZE);
             } else if (obj.type === 'item' && obj.item && sprites[obj.item]) {
-                // Draw items centered on their tile (exactly on the tile beneath)
+                // First draw the grass tile beneath the item
+                const tileX = obj.x;
+                const tileY = obj.y;
+                if (map.tiles[tileY] && map.tiles[tileY][tileX]) {
+                    const tile = map.tiles[tileY][tileX];
+                    const spriteName = tile.sprite || tile.type;
+                    if (sprites[spriteName]) {
+                        ctx.drawImage(sprites[spriteName], tileX * TILE_SIZE, tileY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+                // Then draw the item centered on its tile
                 const itemSprite = sprites[obj.item];
-                const offsetX = (TILE_SIZE - itemSprite.width) / 2; // Center based on actual sprite size
+                const offsetX = (TILE_SIZE - itemSprite.width) / 2;
                 const offsetY = (TILE_SIZE - itemSprite.height) / 2;
                 ctx.drawImage(itemSprite, obj.x * TILE_SIZE + offsetX, obj.y * TILE_SIZE + offsetY);
             }
@@ -1433,19 +1446,8 @@ function renderBattle() {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT - 180);
 
+    // Draw platforms first (behind pokemon)
     if (battleState.enemyPokemon) {
-        // Draw enemy pokemon (front sprite, top right)
-        const enemySpriteName = battleState.enemyPokemon.frontSprite;
-        const enemySprite = sprites[enemySpriteName];
-        if (enemySprite) {
-            // Draw the actual sprite scaled up
-            ctx.save();
-            ctx.translate(550, 120);
-            ctx.scale(2.5, 2.5);
-            ctx.drawImage(enemySprite, 0, 0, enemySprite.width, enemySprite.height);
-            ctx.restore();
-        }
-
         // Draw enemy platform
         ctx.fillStyle = '#34495e';
         ctx.beginPath();
@@ -1454,23 +1456,40 @@ function renderBattle() {
     }
 
     if (battleState.playerPokemon) {
-        // Draw player pokemon (back sprite, bottom left)
-        const playerSpriteName = battleState.playerPokemon.backSprite;
-        const playerSprite = sprites[playerSpriteName];
-        if (playerSprite) {
-            // Draw the actual sprite scaled up
-            ctx.save();
-            ctx.translate(200, 350);
-            ctx.scale(2.5, 2.5);
-            ctx.drawImage(playerSprite, 0, 0, playerSprite.width, playerSprite.height);
-            ctx.restore();
-        }
-
         // Draw player platform
         ctx.fillStyle = '#34495e';
         ctx.beginPath();
         ctx.ellipse(250, 380, 120, 40, 0, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // Draw pokemon sprites on top of platforms
+    if (battleState.enemyPokemon) {
+        // Draw enemy pokemon (front sprite, top right)
+        const enemySpriteName = battleState.enemyPokemon.frontSprite;
+        const enemySprite = sprites[enemySpriteName];
+        if (enemySprite) {
+            // Draw the actual sprite scaled appropriately and positioned correctly
+            ctx.save();
+            ctx.translate(520, 100);  // Adjusted position
+            ctx.scale(2.0, 2.0);      // Reduced scale
+            ctx.drawImage(enemySprite, 0, 0, enemySprite.width, enemySprite.height);
+            ctx.restore();
+        }
+    }
+
+    if (battleState.playerPokemon) {
+        // Draw player pokemon (back sprite, bottom left)
+        const playerSpriteName = battleState.playerPokemon.backSprite;
+        const playerSprite = sprites[playerSpriteName];
+        if (playerSprite) {
+            // Draw the actual sprite scaled appropriately and positioned correctly
+            ctx.save();
+            ctx.translate(180, 320);  // Adjusted position
+            ctx.scale(2.0, 2.0);      // Reduced scale
+            ctx.drawImage(playerSprite, 0, 0, playerSprite.width, playerSprite.height);
+            ctx.restore();
+        }
     }
 }
 
@@ -1531,7 +1550,14 @@ function handleInput() {
     }
 
     if (dx !== 0 || dy !== 0) {
-        player.direction = newDirection;
+        // Swap left and right sprites as requested
+        if (newDirection === 'left') {
+            player.direction = 'right';  // Use right sprite when moving left
+        } else if (newDirection === 'right') {
+            player.direction = 'left';   // Use left sprite when moving right
+        } else {
+            player.direction = newDirection;
+        }
         
         const newX = player.x + dx;
         const newY = player.y + dy;
@@ -1984,16 +2010,25 @@ async function init() {
     player.y = 7 * TILE_SIZE;
     player.currentMap = 'pallet-town';
     
-    // Play town music for starting area
-    playMusic('town');
+    // Play town music for starting area - with user interaction check
+    setTimeout(() => {
+        playMusic('town');
+    }, 500);
     
     // Show welcome message
     setTimeout(() => {
         showLocationName('Pallet Town');
-    }, 500);
+    }, 1000);
 
     // Setup inventory button
     document.getElementById('inventory-btn').onclick = toggleInventory;
+    
+    // Add click listener to enable audio context on first interaction
+    document.addEventListener('click', () => {
+        if (currentMusic && currentMusic.paused) {
+            playMusic(getMusicForMap(player.currentMap));
+        }
+    }, { once: true });
 
     // Start game loop
     gameLoop();
