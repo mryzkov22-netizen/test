@@ -283,7 +283,8 @@ const GameState = {
     BATTLE: 'battle',
     DIALOGUE: 'dialogue',
     MENU: 'menu',
-    TRANSITION: 'transition'
+    TRANSITION: 'transition',
+    MAIN_MENU: 'main_menu'
 };
 
 // Player object
@@ -757,6 +758,46 @@ function showLocationName(name) {
     locationEl.classList.add('active');
 }
 
+// Render main menu
+function renderMainMenu() {
+    // Draw gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+    gradient.addColorStop(0, '#1a252f');
+    gradient.addColorStop(0.5, '#2c3e50');
+    gradient.addColorStop(1, '#1a252f');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Draw title
+    ctx.save();
+    ctx.fillStyle = '#f39c12';
+    ctx.font = 'bold 48px "Press Start 2P", "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('POKEMON ADVENTURE', CANVAS_WIDTH / 2, 150);
+    
+    ctx.fillStyle = '#3498db';
+    ctx.font = '24px "Press Start 2P", "Courier New", monospace';
+    ctx.fillText('KANTO QUEST', CANVAS_WIDTH / 2, 210);
+    
+    // Draw menu options
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = '16px "Press Start 2P", "Courier New", monospace';
+    
+    // Start button (highlighted)
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(CANVAS_WIDTH / 2 - 100, 300, 200, 50);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('PRESS ENTER TO START', CANVAS_WIDTH / 2, 335);
+    
+    // Instructions
+    ctx.fillStyle = '#95a5a6';
+    ctx.font = '12px "Press Start 2P", "Courier New", monospace';
+    ctx.fillText('Controls: Arrow Keys/WASD to move', CANVAS_WIDTH / 2, 420);
+    ctx.fillText('Enter/Space to interact', CANVAS_WIDTH / 2, 445);
+    
+    ctx.restore();
+}
+
 // Check for NPC interaction
 function checkNPCInteraction() {
     const map = maps[player.currentMap];
@@ -1225,22 +1266,47 @@ function enemyTurn() {
 }
 
 // Animate attack - simplified without DOM elements since we render on canvas
+let attackAnimationState = {
+    animating: false,
+    who: null,
+    frame: 0,
+    maxFrames: 6,
+    callback: null
+};
+
 function animateAttack(who, callback) {
-    // Simple animation using canvas rendering
-    let frames = 0;
-    const maxFrames = 6;
-    const direction = who === 'player' ? 20 : -20;
+    // Set up animation state
+    attackAnimationState.animating = true;
+    attackAnimationState.who = who;
+    attackAnimationState.frame = 0;
+    attackAnimationState.maxFrames = 6;
+    attackAnimationState.callback = callback;
+}
+
+function updateAttackAnimation() {
+    if (!attackAnimationState.animating) return false;
     
-    const animate = () => {
-        frames++;
-        if (frames <= maxFrames) {
-            // Animation is handled in renderBattle by offsetting sprite position
-            requestAnimationFrame(animate);
-        } else {
-            if (callback) callback();
+    attackAnimationState.frame++;
+    if (attackAnimationState.frame > attackAnimationState.maxFrames) {
+        attackAnimationState.animating = false;
+        if (attackAnimationState.callback) {
+            attackAnimationState.callback();
         }
+        return false;
+    }
+    return true;
+}
+
+function getAttackAnimationOffset(who) {
+    if (!attackAnimationState.animating || attackAnimationState.who !== who) {
+        return { x: 0, y: 0 };
+    }
+    const direction = who === 'player' ? 20 : -20;
+    const progress = attackAnimationState.frame / attackAnimationState.maxFrames;
+    return {
+        x: Math.sin(progress * Math.PI) * direction,
+        y: Math.sin(progress * Math.PI) * 10
     };
-    requestAnimationFrame(animate);
 }
 
 // End battle
@@ -1280,6 +1346,12 @@ function render() {
     // Clear canvas
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Render main menu if in that state
+    if (currentState === GameState.MAIN_MENU) {
+        renderMainMenu();
+        return;
+    }
 
     const map = maps[player.currentMap];
     if (!map) return;
@@ -1463,17 +1535,22 @@ function renderBattle() {
         ctx.fill();
     }
 
+    // Update attack animation
+    updateAttackAnimation();
+
     // Draw pokemon sprites on top of platforms
     if (battleState.enemyPokemon) {
         // Draw enemy pokemon (front sprite, top right)
         const enemySpriteName = battleState.enemyPokemon.frontSprite;
         const enemySprite = sprites[enemySpriteName];
         if (enemySprite) {
+            // Get animation offset
+            const offset = getAttackAnimationOffset('enemy');
             // Draw the actual sprite scaled appropriately and positioned correctly
             ctx.save();
-            ctx.translate(520, 100);  // Adjusted position
-            ctx.scale(2.0, 2.0);      // Reduced scale
-            ctx.drawImage(enemySprite, 0, 0, enemySprite.width, enemySprite.height);
+            ctx.translate(550 + offset.x, 150 + offset.y);  // Better position - more centered vertically
+            ctx.scale(1.5, 1.5);      // Proper scale - not too big
+            ctx.drawImage(enemySprite, -enemySprite.width / 2, -enemySprite.height / 2, enemySprite.width, enemySprite.height);
             ctx.restore();
         }
     }
@@ -1483,11 +1560,13 @@ function renderBattle() {
         const playerSpriteName = battleState.playerPokemon.backSprite;
         const playerSprite = sprites[playerSpriteName];
         if (playerSprite) {
+            // Get animation offset
+            const offset = getAttackAnimationOffset('player');
             // Draw the actual sprite scaled appropriately and positioned correctly
             ctx.save();
-            ctx.translate(180, 320);  // Adjusted position
-            ctx.scale(2.0, 2.0);      // Reduced scale
-            ctx.drawImage(playerSprite, 0, 0, playerSprite.width, playerSprite.height);
+            ctx.translate(250 + offset.x, 350 + offset.y);  // Better position - above UI area
+            ctx.scale(1.5, 1.5);      // Proper scale - not too big
+            ctx.drawImage(playerSprite, -playerSprite.width / 2, -playerSprite.height / 2, playerSprite.width, playerSprite.height);
             ctx.restore();
         }
     }
@@ -1495,6 +1574,18 @@ function renderBattle() {
 
 // Handle input
 function handleInput() {
+    // Handle main menu state
+    if (currentState === GameState.MAIN_MENU) {
+        if (keys.Enter || keys.Space) {
+            keys.Enter = false;
+            keys.Space = false;
+            // Start the game and play music
+            currentState = GameState.ROAMING;
+            playMusic('town');
+        }
+        return;
+    }
+
     if (currentState === GameState.BATTLE) {
         return;
     }
@@ -1998,22 +2089,17 @@ function giveStarter(pokemonKey) {
     ]);
 }
 
-// Initialize game
+// Initialize game - start with main menu instead of直接进入游戏
 async function init() {
     await loadSprites();
     
-    // Initialize starting map
+    // Initialize starting map (in background)
     initializeMap('pallet-town');
     
     // Set player position
     player.x = 10 * TILE_SIZE;
     player.y = 7 * TILE_SIZE;
     player.currentMap = 'pallet-town';
-    
-    // Play town music for starting area - with user interaction check
-    setTimeout(() => {
-        playMusic('town');
-    }, 500);
     
     // Show welcome message
     setTimeout(() => {
@@ -2030,6 +2116,9 @@ async function init() {
         }
     }, { once: true });
 
+    // Start in main menu state
+    currentState = GameState.MAIN_MENU;
+    
     // Start game loop
     gameLoop();
 }
