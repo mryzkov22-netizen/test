@@ -1,6 +1,6 @@
 // ============================================
 // POKEMON ADVENTURE - KANTO QUEST
-// Complete Game Implementation
+// Complete Game Implementation - FIXED VERSION
 // ============================================
 
 // Canvas and Context
@@ -308,7 +308,7 @@ const maps = {
         height: 15,
         tiles: [],
         npcs: [
-            { x: 8, y: 5, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Welcome to Pallet Town!', 'My lab is to the north.', 'Be careful on the routes!'] },
+            { x: 8, y: 5, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Welcome to Pallet Town!', 'My lab is to the north.', 'Visit me when you are ready for your first Pokemon!'], givesStarter: true },
             { x: 14, y: 9, sprite: 'npc-down', name: 'Lass', dialogue: ['Hi there!', 'Have you seen my pokemon?', 'They love hiding in the grass!'] },
             { x: 4, y: 11, sprite: 'trainer-down', name: 'Youngster', dialogue: ['Want to battle?', 'My Magikarp is super strong!'], battle: { pokemon: ['magikarp'], level: 3 } }
         ],
@@ -335,7 +335,7 @@ const maps = {
         height: 15,
         tiles: [],
         npcs: [
-            { x: 7, y: 4, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Ah, come in!', 'These are the starter pokemon.', 'Choose wisely, young trainer!'], givesStarter: true }
+            { x: 7, y: 4, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Ah, welcome!', 'Are you ready to begin your journey?', 'Choose wisely!'], givesStarter: true }
         ],
         objects: [
             { x: 0, y: 0, width: 15, height: 1, sprite: 'house-wall', type: 'wall' },
@@ -346,7 +346,7 @@ const maps = {
             { x: 4, y: 5, sprite: 'pc', type: 'interactable', action: 'heal', name: 'PC', dialogue: ['The PC is on...', 'Your pokemon have been healed!'] },
             { x: 10, y: 5, sprite: 'bookshelf', type: 'decoration' },
             { x: 11, y: 5, sprite: 'bookshelf', type: 'decoration' },
-            { x: 4, y: 6, sprite: 'counter', type: 'decoration' },
+            { x: 4, y: 6, sprite: 'counter', type: 'decoration', width: 3 },
             { x: 5, y: 6, sprite: 'counter', type: 'decoration' },
             { x: 6, y: 6, sprite: 'counter', type: 'decoration' },
             { x: 10, y: 6, sprite: 'counter', type: 'decoration' },
@@ -381,14 +381,25 @@ const maps = {
             { x: 17, y: 2, sprite: 'pokeball', type: 'item', item: 'pokeball' },
             { x: 10, y: 7, sprite: 'bridge', type: 'bridge' },
             { x: 10, y: 8, sprite: 'water', type: 'water' },
-            { x: 10, y: 9, sprite: 'water', type: 'water' }
+            { x: 10, y: 9, sprite: 'water', type: 'water' },
+            // Grass patches for wild encounters
+            { x: 6, y: 4, sprite: 'grass', type: 'grass' },
+            { x: 7, y: 4, sprite: 'grass', type: 'grass' },
+            { x: 8, y: 4, sprite: 'grass', type: 'grass' },
+            { x: 6, y: 5, sprite: 'grass', type: 'grass' },
+            { x: 7, y: 5, sprite: 'grass', type: 'grass' },
+            { x: 8, y: 5, sprite: 'grass', type: 'grass' },
+            { x: 12, y: 10, sprite: 'grass', type: 'grass' },
+            { x: 13, y: 10, sprite: 'grass', type: 'grass' },
+            { x: 12, y: 11, sprite: 'grass', type: 'grass' },
+            { x: 13, y: 11, sprite: 'grass', type: 'grass' }
         ],
         exits: [
             { x: 10, y: 14, width: 2, direction: 'south', destination: 'pallet-town', destX: 10, destY: 1 },
             { x: 10, y: 0, width: 2, direction: 'north', destination: 'viridian-city', destX: 10, destY: 14 }
         ],
         encounterRate: 0.15,
-        wildPokemon: ['pidgey', 'rattata', 'caterpie', 'weedle'].map(p => POKEMON_DATA[p] ? p : 'pikachu')
+        wildPokemon: ['pikachu', 'magikarp', 'psyduck']
     },
     'viridian-city': {
         name: 'Viridian City',
@@ -568,7 +579,27 @@ function initializeMap(mapKey) {
                     }
                 }
             } else if (obj.sprite) {
-                map.tiles[obj.y][obj.x].sprite = obj.sprite;
+                // For decorations (trees, rocks), items, grass patches - set sprite but keep walkable
+                const width = obj.width || 1;
+                const height = obj.height || 1;
+                for (let dy = 0; dy < height; dy++) {
+                    for (let dx = 0; dx < width; dx++) {
+                        const ty = obj.y + dy;
+                        const tx = obj.x + dx;
+                        if (ty >= 0 && ty < map.height && tx >= 0 && tx < map.width) {
+                            // Only mark as non-walkable if it's a decoration (tree, rock)
+                            if (obj.type === 'decoration' && (obj.sprite === 'tree' || obj.sprite === 'rock')) {
+                                map.tiles[ty][tx].walkable = false;
+                            }
+                            // Set the sprite for rendering
+                            map.tiles[ty][tx].sprite = obj.sprite;
+                            // Store object type for encounter checking
+                            if (obj.type === 'grass') {
+                                map.tiles[ty][tx].isGrass = true;
+                            }
+                        }
+                    }
+                }
             }
         });
     }
@@ -602,10 +633,13 @@ function checkCollision(x, y) {
         }
     }
 
-    // Check objects
+    // Check objects - include trees, rocks, doors, counters as obstacles
     if (map.objects) {
         for (const obj of map.objects) {
-            if (obj.type === 'obstacle' || obj.type === 'wall' || obj.type === 'water') {
+            // Obstacles: walls, water, decorations (trees, rocks), doors, counters
+            if (obj.type === 'obstacle' || obj.type === 'wall' || obj.type === 'water' || 
+                obj.type === 'decoration' || obj.type === 'door' || obj.sprite === 'tree' || 
+                obj.sprite === 'rock' || obj.sprite === 'counter') {
                 const objWidth = (obj.width || 1) * TILE_SIZE;
                 const objHeight = (obj.height || 1) * TILE_SIZE;
                 const objX = obj.x * TILE_SIZE;
@@ -782,8 +816,8 @@ function closeDialogue() {
 function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = '') {
     currentState = GameState.BATTLE;
     
+    // If player has no pokemon, they can't battle - just return silently (no alert)
     if (player.party.length === 0) {
-        alert('You need at least one Pokemon to battle!');
         currentState = GameState.ROAMING;
         return;
     }
@@ -791,7 +825,6 @@ function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = 
     // Find first non-fainted pokemon
     let availablePokemon = player.party.filter(p => p.hp > 0);
     if (availablePokemon.length === 0) {
-        alert('All your Pokemon have fainted!');
         currentState = GameState.ROAMING;
         return;
     }
@@ -1248,9 +1281,22 @@ function render() {
         }
     }
 
-    // Draw player
-    if (sprites[`player-${player.direction}`]) {
-        ctx.drawImage(sprites[`player-${player.direction}`], player.x, player.y, TILE_SIZE, TILE_SIZE);
+    // Draw player - swap left/right sprites for correct facing direction
+    let playerSpriteName = `player-${player.direction}`;
+    if (sprites[playerSpriteName]) {
+        const sprite = sprites[playerSpriteName];
+        ctx.save();
+        // For left direction, we need to flip the sprite horizontally
+        if (player.direction === 'left') {
+            ctx.translate(player.x + TILE_SIZE, player.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(sprite, 0, 0, TILE_SIZE, TILE_SIZE);
+        } else if (player.direction === 'right') {
+            ctx.drawImage(sprite, player.x, player.y, TILE_SIZE, TILE_SIZE);
+        } else {
+            ctx.drawImage(sprite, player.x, player.y, TILE_SIZE, TILE_SIZE);
+        }
+        ctx.restore();
     }
 
     ctx.restore();
@@ -1467,8 +1513,12 @@ function handleInteraction() {
     const npc = checkNPCInteraction();
     if (npc) {
         if (npc.battle) {
-            // Start trainer battle
-            startBattle(npc.battle.pokemon, npc.battle.pokemon.map(() => npc.battle.level), true, npc.name);
+            // Start trainer battle - only if player has pokemon
+            if (player.party.length > 0) {
+                startBattle(npc.battle.pokemon, npc.battle.pokemon.map(() => npc.battle.level), true, npc.name);
+            } else {
+                showDialogue(npc.name, [...npc.dialogue, 'But you have no Pokemon!']);
+            }
         } else if (npc.givesStarter) {
             // Give starter pokemon
             if (player.party.length === 0) {
@@ -1477,7 +1527,7 @@ function handleInteraction() {
                     // Starter selection handled separately
                 };
             } else {
-                showDialogue(npc.name, npc.dialogue);
+                showDialogue(npc.name, ['You already have a Pokemon!', 'Take care of it!']);
             }
         } else if (npc.shop) {
             // Open shop
@@ -1494,13 +1544,17 @@ function checkEncounter() {
     const map = maps[player.currentMap];
     if (!map || map.encounterRate === 0) return;
 
+    // Only allow encounters if player has pokemon
+    if (player.party.length === 0) return;
+
     // Check if standing in grass
     const tileX = Math.floor(player.x / TILE_SIZE);
     const tileY = Math.floor(player.y / TILE_SIZE);
     
     if (tileX >= 0 && tileX < map.width && tileY >= 0 && tileY < map.height) {
         const tile = map.tiles[tileY][tileX];
-        if (tile.type === 'grass' || tile.sprite === 'grass') {
+        // Check for grass tiles or grass objects
+        if (tile.type === 'grass' || tile.sprite === 'grass' || tile.isGrass) {
             if (Math.random() < map.encounterRate) {
                 // Wild encounter!
                 const wildPokemon = map.wildPokemon.length > 0 ? 
