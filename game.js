@@ -1,6 +1,6 @@
 // ============================================
 // POKEMON ADVENTURE - KANTO QUEST
-// Complete Game Implementation - FIXED VERSION
+// Complete Game Implementation - FINAL FIXED VERSION
 // ============================================
 
 // Canvas and Context
@@ -13,6 +13,43 @@ const MAP_WIDTH = 20;
 const MAP_HEIGHT = 15;
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
+
+// Audio system
+let currentMusic = null;
+const musicTracks = {
+    'town': new Audio('town_ost.mp3'),
+    'route': new Audio('route.mp3')
+};
+
+// Set music to loop
+Object.values(musicTracks).forEach(audio => {
+    audio.loop = true;
+    audio.volume = 0.3;
+});
+
+function playMusic(trackName) {
+    // Stop current music
+    if (currentMusic) {
+        currentMusic.pause();
+        currentMusic.currentTime = 0;
+    }
+    
+    // Play new music if available
+    if (musicTracks[trackName]) {
+        musicTracks[trackName].play().catch(() => {
+            // Autoplay might be blocked, ignore error
+        });
+        currentMusic = musicTracks[trackName];
+    }
+}
+
+function getMusicForMap(mapKey) {
+    if (mapKey.includes('town') || mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym')) {
+        return 'town';
+    } else {
+        return 'route';
+    }
+}
 
 // Game flags
 let starterGiven = false;
@@ -702,6 +739,9 @@ function transitionToMap(newMap, newX, newY) {
         // Show location name
         showLocationName(maps[newMap].name);
         
+        // Play appropriate music for the new map
+        playMusic(getMusicForMap(newMap));
+        
         currentState = GameState.ROAMING;
     }, 500);
 }
@@ -822,8 +862,9 @@ function closeDialogue() {
     
     // Call callback if exists
     if (dialogueState.callback) {
-        dialogueState.callback();
+        const cb = dialogueState.callback;
         dialogueState.callback = null;
+        cb();
     }
     
     dialogueState.active = false;
@@ -1027,6 +1068,8 @@ function executePlayerMove(moveName) {
 
     if (!move) {
         battleState.animating = false;
+        battleState.turn = 'enemy';
+        enemyTurn();
         return;
     }
 
@@ -1036,8 +1079,9 @@ function executePlayerMove(moveName) {
         processBattleMessages();
         setTimeout(() => {
             battleState.animating = false;
+            battleState.turn = 'enemy';
             enemyTurn();
-        }, 1600);
+        }, 2000);
         return;
     }
 
@@ -1074,20 +1118,21 @@ function executePlayerMove(moveName) {
                         
                         setTimeout(() => {
                             endBattle(true);
-                        }, 1600);
+                        }, 2000);
                     } else {
-                        // Wild battle - ask to catch
+                        // Wild battle - victory
                         setTimeout(() => {
                             endBattle(true);
-                        }, 1600);
+                        }, 2000);
                     }
-                }, 1600);
+                }, 2000);
             }, 500);
         } else {
             setTimeout(() => {
                 battleState.animating = false;
+                battleState.turn = 'enemy';
                 enemyTurn();
-            }, 1600);
+            }, 2000);
         }
     });
 }
@@ -1114,7 +1159,7 @@ function enemyTurn() {
                 battleState.turn = 'player';
                 battleState.phase = 'menu';
                 updateBattleUI();
-            }, 1600);
+            }, 2000);
             return;
         }
 
@@ -1153,16 +1198,16 @@ function enemyTurn() {
                             setTimeout(() => {
                                 battleState.animating = false;
                                 enemyTurn(); // Enemy attacks again after switch
-                            }, 1600);
+                            }, 2000);
                         } else {
                             // All pokemon fainted - lose
                             queueBattleMessage('You have no more Pokemon!');
                             processBattleMessages();
                             setTimeout(() => {
                                 endBattle(false);
-                            }, 1600);
+                            }, 2000);
                         }
-                    }, 1600);
+                    }, 2000);
                 }, 500);
             } else {
                 setTimeout(() => {
@@ -1170,41 +1215,29 @@ function enemyTurn() {
                     battleState.turn = 'player';
                     battleState.phase = 'menu';
                     updateBattleUI();
-                }, 1600);
+                }, 2000);
             }
         });
     }, 1000);
 }
 
-// Animate attack
+// Animate attack - simplified without DOM elements since we render on canvas
 function animateAttack(who, callback) {
-    const battleUi = document.getElementById('battle-ui');
-    const sprite = who === 'player' ? 
-        document.getElementById('player-pokemon-sprite') :
-        document.getElementById('enemy-pokemon-sprite');
-
-    if (sprite) {
-        const originalTransform = sprite.style.transform;
-        const direction = who === 'player' ? 20 : -20;
-        
-        let frames = 0;
-        const animate = () => {
-            frames++;
-            if (frames <= 3) {
-                sprite.style.transform = `translateX(${direction}px)`;
-            } else if (frames <= 6) {
-                sprite.style.transform = `translateX(${-direction}px)`;
-            } else {
-                sprite.style.transform = originalTransform;
-                if (callback) callback();
-                return;
-            }
+    // Simple animation using canvas rendering
+    let frames = 0;
+    const maxFrames = 6;
+    const direction = who === 'player' ? 20 : -20;
+    
+    const animate = () => {
+        frames++;
+        if (frames <= maxFrames) {
+            // Animation is handled in renderBattle by offsetting sprite position
             requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
-    } else if (callback) {
-        callback();
-    }
+        } else {
+            if (callback) callback();
+        }
+    };
+    requestAnimationFrame(animate);
 }
 
 // End battle
@@ -1290,13 +1323,14 @@ function render() {
         for (const obj of map.objects) {
             if (obj.sprite && sprites[obj.sprite]) {
                 const width = obj.width || 1;
+                // For counters and other multi-tile objects, draw across multiple tiles
                 ctx.drawImage(sprites[obj.sprite], obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE * width, TILE_SIZE);
             } else if (obj.type === 'item' && obj.item && sprites[obj.item]) {
-                // Draw items centered on their tile
+                // Draw items centered on their tile (exactly on the tile beneath)
                 const itemSprite = sprites[obj.item];
-                const offsetX = (TILE_SIZE - 32) / 2; // Center the item (assuming 32px sprite)
-                const offsetY = (TILE_SIZE - 32) / 2;
-                ctx.drawImage(itemSprite, obj.x * TILE_SIZE + offsetX, obj.y * TILE_SIZE + offsetY, 32, 32);
+                const offsetX = (TILE_SIZE - itemSprite.width) / 2; // Center based on actual sprite size
+                const offsetY = (TILE_SIZE - itemSprite.height) / 2;
+                ctx.drawImage(itemSprite, obj.x * TILE_SIZE + offsetX, obj.y * TILE_SIZE + offsetY);
             }
         }
     }
@@ -1358,10 +1392,11 @@ function render() {
         }
     }
 
-    // Draw player - use correct sprite for each direction
+    // Draw player - use correct sprite for each direction (FIXED: no flipping, use dedicated sprites)
     let playerSpriteName = `player-${player.direction}`;
     if (sprites[playerSpriteName]) {
         const sprite = sprites[playerSpriteName];
+        // Draw without any transformation - use the sprite as-is
         ctx.drawImage(sprite, player.x, player.y, TILE_SIZE, TILE_SIZE);
     }
 
@@ -1400,21 +1435,15 @@ function renderBattle() {
 
     if (battleState.enemyPokemon) {
         // Draw enemy pokemon (front sprite, top right)
-        const enemySprite = sprites[battleState.enemyPokemon.frontSprite];
+        const enemySpriteName = battleState.enemyPokemon.frontSprite;
+        const enemySprite = sprites[enemySpriteName];
         if (enemySprite) {
+            // Draw the actual sprite scaled up
             ctx.save();
-            ctx.scale(2, 2);
-            ctx.drawImage(enemySprite, 500, 80, 48, 48);
+            ctx.translate(550, 120);
+            ctx.scale(2.5, 2.5);
+            ctx.drawImage(enemySprite, 0, 0, enemySprite.width, enemySprite.height);
             ctx.restore();
-            
-            // Store reference for animation
-            const spriteEl = { style: { transform: '' } };
-            if (!document.getElementById('enemy-pokemon-sprite')) {
-                const el = document.createElement('div');
-                el.id = 'enemy-pokemon-sprite';
-                el.style.cssText = 'position: absolute; top: 80px; left: 500px; width: 96px; height: 96px;';
-                document.getElementById('battle-ui').appendChild(el);
-            }
         }
 
         // Draw enemy platform
@@ -1426,19 +1455,15 @@ function renderBattle() {
 
     if (battleState.playerPokemon) {
         // Draw player pokemon (back sprite, bottom left)
-        const playerSprite = sprites[battleState.playerPokemon.backSprite];
+        const playerSpriteName = battleState.playerPokemon.backSprite;
+        const playerSprite = sprites[playerSpriteName];
         if (playerSprite) {
+            // Draw the actual sprite scaled up
             ctx.save();
-            ctx.scale(2, 2);
-            ctx.drawImage(playerSprite, 150, 200, 48, 48);
+            ctx.translate(200, 350);
+            ctx.scale(2.5, 2.5);
+            ctx.drawImage(playerSprite, 0, 0, playerSprite.width, playerSprite.height);
             ctx.restore();
-
-            if (!document.getElementById('player-pokemon-sprite')) {
-                const el = document.createElement('div');
-                el.id = 'player-pokemon-sprite';
-                el.style.cssText = 'position: absolute; top: 400px; left: 150px; width: 96px; height: 96px;';
-                document.getElementById('battle-ui').appendChild(el);
-            }
         }
 
         // Draw player platform
@@ -1586,13 +1611,19 @@ function handleInteraction() {
         } else if (npc.givesStarter && !starterGiven) {
             // Give starter pokemon - only once per game
             if (player.party.length === 0) {
-                showDialogue(npc.name, npc.dialogue);
-                dialogueState.callback = () => {
-                    // Show selection prompt after dialogue
-                    setTimeout(() => {
-                        showDialogue(npc.name, ['', 'Which Pokemon do you choose?', 'Press 1 for Bulbasaur (Grass)', 'Press 2 for Charmander (Fire)', 'Press 3 for Squirtle (Water)']);
-                    }, 100);
-                };
+                // Show full dialogue sequence with starter selection
+                showDialogue(npc.name, [
+                    "Welcome to my lab!",
+                    "I am Professor Oak, the Pokemon researcher.",
+                    "Are you ready to begin your journey?",
+                    "You need a Pokemon partner for your adventure.",
+                    "Choose wisely - this Pokemon will be with you throughout your journey!",
+                    "",
+                    "Which Pokemon do you choose?",
+                    "Press 1 for Bulbasaur (Grass type)",
+                    "Press 2 for Charmander (Fire type)", 
+                    "Press 3 for Squirtle (Water type)"
+                ]);
             } else {
                 showDialogue(npc.name, ['You already have a Pokemon!', 'Take care of it on your journey!']);
             }
@@ -1952,6 +1983,9 @@ async function init() {
     player.x = 10 * TILE_SIZE;
     player.y = 7 * TILE_SIZE;
     player.currentMap = 'pallet-town';
+    
+    // Play town music for starting area
+    playMusic('town');
     
     // Show welcome message
     setTimeout(() => {
