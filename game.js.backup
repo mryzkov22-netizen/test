@@ -318,7 +318,7 @@ const maps = {
         height: 15,
         tiles: [],
         npcs: [
-            { x: 8, y: 5, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Welcome to Pallet Town!', 'I am Professor Oak, but everyone calls me the Pokemon Professor!', 'My lab is to the north.', 'Visit me when you are ready for your first Pokemon!'], givesStarter: true },
+            { x: 8, y: 5, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Welcome to Pallet Town!', 'My lab is to the north.', 'Visit me when you are ready for your first Pokemon!'], givesStarter: true },
             { x: 14, y: 9, sprite: 'npc-down', name: 'Lass', dialogue: ['Hi there!', 'Have you seen my pokemon?', 'They love hiding in the grass!'] },
             { x: 4, y: 11, sprite: 'trainer-down', name: 'Youngster', dialogue: ['Want to battle?', 'My Magikarp is super strong!'], battle: { pokemon: ['magikarp'], level: 3 } }
         ],
@@ -345,7 +345,7 @@ const maps = {
         height: 15,
         tiles: [],
         npcs: [
-            { x: 7, y: 4, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Ah, welcome to my lab!', 'I am Professor Oak, the Pokemon researcher.', 'Are you ready to begin your journey?', 'You need a Pokemon partner for your adventure.', 'Choose wisely - this Pokemon will be with you throughout your journey!'], givesStarter: true }
+            { x: 7, y: 4, sprite: 'npc-down', name: 'Prof. Oak', dialogue: ['Ah, welcome!', 'Are you ready to begin your journey?', 'Choose wisely!'], givesStarter: true }
         ],
         objects: [
             { x: 0, y: 0, width: 15, height: 1, sprite: 'house-wall', type: 'wall' },
@@ -1358,11 +1358,21 @@ function render() {
         }
     }
 
-    // Draw player - use correct sprite for each direction
+    // Draw player - correct sprite direction handling
     let playerSpriteName = `player-${player.direction}`;
     if (sprites[playerSpriteName]) {
         const sprite = sprites[playerSpriteName];
-        ctx.drawImage(sprite, player.x, player.y, TILE_SIZE, TILE_SIZE);
+        ctx.save();
+        // For left direction, flip the sprite horizontally
+        if (player.direction === 'left') {
+            ctx.translate(player.x + TILE_SIZE, player.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(sprite, 0, 0, TILE_SIZE, TILE_SIZE);
+        } else {
+            // For right, down, up - draw normally
+            ctx.drawImage(sprite, player.x, player.y, TILE_SIZE, TILE_SIZE);
+        }
+        ctx.restore();
     }
 
     ctx.restore();
@@ -1586,15 +1596,12 @@ function handleInteraction() {
         } else if (npc.givesStarter && !starterGiven) {
             // Give starter pokemon - only once per game
             if (player.party.length === 0) {
-                showDialogue(npc.name, npc.dialogue);
+                showDialogue(npc.name, [...npc.dialogue, '', 'Which pokemon do you choose?', 'Press 1 for Bulbasaur, 2 for Charmander, 3 for Squirtle']);
                 dialogueState.callback = () => {
-                    // Show selection prompt after dialogue
-                    setTimeout(() => {
-                        showDialogue(npc.name, ['', 'Which Pokemon do you choose?', 'Press 1 for Bulbasaur (Grass)', 'Press 2 for Charmander (Fire)', 'Press 3 for Squirtle (Water)']);
-                    }, 100);
+                    // Starter selection handled by number keys
                 };
             } else {
-                showDialogue(npc.name, ['You already have a Pokemon!', 'Take care of it on your journey!']);
+                showDialogue(npc.name, ['You already have a Pokemon!', 'Take care of it!']);
             }
         } else if (npc.givesStarter && starterGiven) {
             showDialogue(npc.name, ['Your journey has begun!', 'Go explore the world with your Pokemon!']);
