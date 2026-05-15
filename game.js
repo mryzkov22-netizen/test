@@ -1260,6 +1260,7 @@ function enemyTurn() {
                 battleState.animating = false;
                 battleState.turn = 'player';
                 battleState.phase = 'menu';
+                document.getElementById('battle-menu').style.display = 'grid';
                 updateBattleUI();
             }, 2000);
         }
