@@ -422,6 +422,26 @@
             background: #2ecc71;
             transition: width 0.3s;
         }
+        
+        #shop-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
+            border: 4px solid #ecf0f1;
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            display: none;
+            pointer-events: auto;
+            min-width: 400px;
+            z-index: 200;
+        }
+        
+        #shop-panel.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -471,6 +491,12 @@
                 <div class="party-title">🔴 Your Party</div>
                 <div class="party-grid" id="party-grid"></div>
                 <button class="close-btn" onclick="toggleParty()">Close</button>
+            </div>
+            <div id="shop-panel">
+                <div class="inventory-title">🏪 Pokémart</div>
+                <div style="text-align: center; margin-bottom: 10px; font-size: 14px; color: #f39c12;">Money: <span id="shop-money">$0</span></div>
+                <div class="inventory-grid" id="shop-grid"></div>
+                <button class="close-btn" onclick="closeShop()">Leave Shop</button>
             </div>
         </div>
     </div>

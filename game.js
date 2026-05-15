@@ -372,11 +372,37 @@ const maps = {
             { x: 2, y: 8, sprite: 'tree', type: 'decoration' },
             { x: 2, y: 9, sprite: 'tree', type: 'decoration' },
             { x: 18, y: 5, sprite: 'flower', type: 'item', item: 'potion' },
-            { x: 6, y: 12, sprite: 'berry', type: 'item', item: 'berry' }
+            { x: 6, y: 12, sprite: 'berry', type: 'item', item: 'berry' },
+            // Pokecenter
+            { x: 3, y: 3, sprite: 'house-wall', type: 'wall' },
+            { x: 4, y: 3, sprite: 'door', type: 'door', destination: 'pallet-pokecenter', destX: 5, destY: 10 },
+            { x: 5, y: 3, sprite: 'house-wall', type: 'wall' }
         ],
         exits: [
             { x: 9, y: 0, width: 2, direction: 'north', destination: 'route-1', destX: 10, destY: 14 }
         ],
+        encounterRate: 0,
+        wildPokemon: []
+    },
+    'pallet-pokecenter': {
+        name: 'Pallet Pokemon Center',
+        width: 12,
+        height: 12,
+        tiles: [],
+        npcs: [
+            { x: 6, y: 4, sprite: 'npc-down', name: 'Nurse Joy', dialogue: ['Welcome to the Pokemon Center!', 'We can heal your Pokemon to full health.', 'Your Pokemon will be fighting fit in no time!'], heal: true }
+        ],
+        objects: [
+            { x: 0, y: 0, width: 12, height: 1, sprite: 'house-wall', type: 'wall' },
+            { x: 0, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
+            { x: 11, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
+            { x: 0, y: 11, width: 12, height: 1, sprite: 'house-floor', type: 'floor' },
+            { x: 6, y: 11, sprite: 'door', type: 'door', destination: 'pallet-town', destX: 4, destY: 5 },
+            { x: 4, y: 5, sprite: 'pc', type: 'interactable', action: 'heal', name: 'Healing Machine', dialogue: ['The healing machine is on...', 'Your pokemon have been healed to full health!'] },
+            { x: 7, y: 5, sprite: 'counter', type: 'decoration' },
+            { x: 8, y: 5, sprite: 'counter', type: 'decoration' }
+        ],
+        exits: [],
         encounterRate: 0,
         wildPokemon: []
     },
@@ -1135,6 +1161,9 @@ function executePlayerMove(moveName) {
         setTimeout(() => {
             battleState.animating = false;
             battleState.turn = 'enemy';
+            battleState.phase = 'action';
+            document.getElementById('battle-menu').style.display = 'none';
+            updateBattleUI();
             enemyTurn();
         }, 2000);
         return;
@@ -1794,8 +1823,9 @@ function handleInteraction() {
         } else if (npc.givesStarter && starterGiven) {
             showDialogue(npc.name, ['Your journey has begun!', 'Go explore the world with your Pokemon!']);
         } else if (npc.shop) {
-            // Open shop
-            showDialogue(npc.name, [...npc.dialogue, '', 'Shop is coming soon!']);
+            // Open shop interface
+            openShop(npc);
+            return;
         } else {
             showDialogue(npc.name, npc.dialogue);
         }
@@ -2057,6 +2087,126 @@ function toggleParty() {
 
         panel.classList.add('active');
     }
+}
+
+// Shop system
+let currentShopNPC = null;
+
+function openShop(npc) {
+    currentShopNPC = npc;
+    currentState = GameState.MENU;
+    
+    const shopPanel = document.getElementById('shop-panel');
+    const shopGrid = document.getElementById('shop-grid');
+    const shopMoney = document.getElementById('shop-money');
+    
+    if (!shopPanel) {
+        console.error('Shop panel not found in HTML');
+        return;
+    }
+    
+    shopMoney.textContent = `$${player.money}`;
+    shopGrid.innerHTML = '';
+    
+    const shopItems = [
+        { key: 'potion', name: 'Potion', price: 100, sprite: 'potion', desc: 'Restores 20 HP' },
+        { key: 'pokeball', name: 'Poke Ball', price: 200, sprite: 'pokeball', desc: 'Catches wild Pokemon' },
+        { key: 'berry', name: 'Berry', price: 50, sprite: 'berry', desc: 'Restores 10 HP' },
+        { key: 'super_potion', name: 'Super Potion', price: 250, sprite: 'potion', desc: 'Restores 50 HP' }
+    ];
+    
+    shopItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'inventory-item';
+        div.innerHTML = `
+            ${sprites[item.sprite] ? `<img src="${item.sprite}.png" alt="${item.name}">` : '📦'}
+            <div class="inventory-item-count">${item.name}</div>
+            <div style="font-size: 9px; color: #f39c12; margin-top: 3px;">$${item.price}</div>
+            <div style="font-size: 7px; margin-top: 2px;">${item.desc}</div>
+        `;
+        div.onclick = () => buyItem(item);
+        shopGrid.appendChild(div);
+    });
+    
+    shopPanel.classList.add('active');
+}
+
+function buyItem(item) {
+    let price = 0;
+    let itemType = '';
+    
+    if (item.key === 'potion') {
+        price = 100;
+        itemType = 'potions';
+    } else if (item.key === 'pokeball') {
+        price = 200;
+        itemType = 'pokeballs';
+    } else if (item.key === 'berry') {
+        price = 50;
+        itemType = 'berries';
+    } else if (item.key === 'super_potion') {
+        price = 250;
+        itemType = 'potions';
+    }
+    
+    if (player.money >= price) {
+        player.money -= price;
+        player.inventory[itemType]++;
+        document.getElementById('shop-money').textContent = `$${player.money}`;
+        
+        // Show confirmation
+        const shopPanel = document.getElementById('shop-panel');
+        const confirmMsg = document.createElement('div');
+        confirmMsg.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 400;
+            text-align: center;
+        `;
+        confirmMsg.textContent = `Bought ${item.name}!`;
+        shopPanel.appendChild(confirmMsg);
+        
+        setTimeout(() => {
+            confirmMsg.remove();
+        }, 1000);
+    } else {
+        // Not enough money
+        const shopPanel = document.getElementById('shop-panel');
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #e74c3c;
+            padding: 20px 40px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 400;
+            text-align: center;
+        `;
+        errorMsg.textContent = 'Not enough money!';
+        shopPanel.appendChild(errorMsg);
+        
+        setTimeout(() => {
+            errorMsg.remove();
+        }, 1000);
+    }
+}
+
+function closeShop() {
+    const shopPanel = document.getElementById('shop-panel');
+    shopPanel.classList.remove('active');
+    currentShopNPC = null;
+    currentState = GameState.ROAMING;
 }
 
 // Battle UI event handlers
