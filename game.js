@@ -103,6 +103,33 @@ async function loadSprites() {
     console.log('All sprites loaded!');
 }
 
+
+// Pokemon object creation helper
+function createPokemon(pokemonKey, level) {
+    const pokemonData = POKEMON_DATA[pokemonKey];
+    if (!pokemonData) return null;
+    
+    // Calculate stats based on level
+    const hpMultiplier = level / 5;
+    const statMultiplier = level / 50;
+    
+    return {
+        name: pokemonData.name,
+        type: pokemonData.type,
+        level: level,
+        maxHp: Math.floor(pokemonData.maxHp * hpMultiplier),
+        hp: Math.floor(pokemonData.maxHp * hpMultiplier),
+        attack: Math.floor(pokemonData.attack * (1 + statMultiplier)),
+        defense: Math.floor(pokemonData.defense * (1 + statMultiplier)),
+        speed: Math.floor(pokemonData.speed * (1 + statMultiplier)),
+        moves: pokemonData.moves.slice(0, Math.min(4, Math.ceil(level / 10) + 1)),
+        frontSprite: pokemonData.frontSprite,
+        backSprite: pokemonData.backSprite,
+        experience: 0,
+        expToNextLevel: Math.floor(100 * Math.pow(level, 1.5))
+    };
+}
+
 // Pokemon Data
 const POKEMON_DATA = {
     bulbasaur: {
@@ -396,21 +423,12 @@ const maps = {
             { x: 0, y: 0, width: 12, height: 1, sprite: 'house-wall', type: 'wall' },
             { x: 0, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
             { x: 11, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
-            { x: 0, y: 11, width: 12, height: 1, sprite: 'grass', type: 'floor' },
+            { x: 0, y: 11, width: 12, height: 1, sprite: 'house-floor', type: 'floor' },
             { x: 6, y: 11, sprite: 'door', type: 'door', destination: 'pallet-town', destX: 4, destY: 5 },
             { x: 4, y: 5, sprite: 'pc', type: 'interactable', action: 'heal', name: 'Healing Machine', dialogue: ['The healing machine is on...', 'Your pokemon have been healed to full health!'] },
             { x: 7, y: 5, sprite: 'counter', type: 'decoration' },
             { x: 8, y: 5, sprite: 'counter', type: 'decoration' },
-            // Add grass patches inside pokecenter
-            { x: 2, y: 3, sprite: 'grass', type: 'grass' },
-            { x: 3, y: 3, sprite: 'grass', type: 'grass' },
-            { x: 8, y: 3, sprite: 'grass', type: 'grass' },
-            { x: 9, y: 3, sprite: 'grass', type: 'grass' },
-            { x: 2, y: 8, sprite: 'grass', type: 'grass' },
-            { x: 3, y: 8, sprite: 'grass', type: 'grass' },
-            { x: 8, y: 8, sprite: 'grass', type: 'grass' },
-            { x: 9, y: 8, sprite: 'grass', type: 'grass' },
-            // Add some flowers for decoration
+            // Add flowers for decoration (no grass inside pokecenter)
             { x: 2, y: 4, sprite: 'flower', type: 'decoration' },
             { x: 9, y: 4, sprite: 'flower', type: 'decoration' },
             { x: 2, y: 7, sprite: 'flower', type: 'decoration' },
@@ -994,19 +1012,16 @@ function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = 
     battleState.messageQueue = [];
     battleState.showingMessage = false;
 
-    // Create enemy pokemon
+    // Create enemy pokemon using createPokemon function
     const randomIndex = Math.floor(Math.random() * enemyPokemonList.length);
     const pokemonKey = enemyPokemonList[randomIndex];
-    const pokemonData = POKEMON_DATA[pokemonKey] || POKEMON_DATA.pikachu;
     const level = levels ? levels[randomIndex] || 5 : 5;
-
-    battleState.enemyPokemon = {
-        ...pokemonData,
-        level: level,
-        hp: Math.floor(pokemonData.maxHp * (level / 5)),
-        maxHp: Math.floor(pokemonData.maxHp * (level / 5)),
-        currentMove: 0
-    };
+    
+    battleState.enemyPokemon = createPokemon(pokemonKey, level);
+    if (!battleState.enemyPokemon) {
+        battleState.enemyPokemon = createPokemon('pikachu', level);
+    }
+    battleState.enemyPokemon.currentMove = 0;
 
     // Update battle UI
     updateBattleUI();
@@ -1369,6 +1384,48 @@ function getAttackAnimationOffset(who) {
 // End battle
 let pokecenterSpawnPoint = null;
 
+// Level up function
+function levelUpPokemon(pokemon) {
+    let leveledUp = false;
+    
+    while (pokemon.experience >= pokemon.expToNextLevel && pokemon.level < 100) {
+        pokemon.experience -= pokemon.expToNextLevel;
+        pokemon.level++;
+        
+        // Recalculate stats with new level
+        const hpMultiplier = pokemon.level / 5;
+        const statMultiplier = pokemon.level / 50;
+        
+        const baseData = POKEMON_DATA[pokemon.name.toLowerCase()] || POKEMON_DATA.bulbasaur;
+        
+        // Calculate new max HP and increase current HP proportionally
+        const oldMaxHp = pokemon.maxHp;
+        pokemon.maxHp = Math.floor(baseData.maxHp * hpMultiplier);
+        pokemon.hp = pokemon.hp + (pokemon.maxHp - oldMaxHp);
+        
+        pokemon.attack = Math.floor(baseData.attack * (1 + statMultiplier));
+        pokemon.defense = Math.floor(baseData.defense * (1 + statMultiplier));
+        pokemon.speed = Math.floor(baseData.speed * (1 + statMultiplier));
+        
+        // Add new moves if available
+        const availableMoves = baseData.moves.slice(0, Math.min(4, Math.ceil(pokemon.level / 10) + 1));
+        for (const move of availableMoves) {
+            if (!pokemon.moves.includes(move)) {
+                if (pokemon.moves.length < 4) {
+                    pokemon.moves.push(move);
+                }
+            }
+        }
+        
+        // Calculate new exp to next level
+        pokemon.expToNextLevel = Math.floor(100 * Math.pow(pokemon.level, 1.5));
+        
+        leveledUp = true;
+    }
+    
+    return leveledUp;
+}
+
 function endBattle(won, isTrainerBattle = false) {
     // Always ensure battle UI is hidden properly
     const battleUI = document.getElementById('battle-ui');
@@ -1377,9 +1434,20 @@ function endBattle(won, isTrainerBattle = false) {
     if (moveSelection) moveSelection.classList.remove('active');
     
     if (won) {
-        // Gain experience (simplified)
-        if (battleState.playerPokemon) {
-            queueBattleMessage(`${battleState.playerPokemon.name} gained experience!`);
+        // Gain experience for player's pokemon that participated
+        if (battleState.playerPokemon && battleState.enemyPokemon) {
+            const expGain = Math.floor(battleState.enemyPokemon.level * 20);
+            battleState.playerPokemon.experience += expGain;
+            queueBattleMessage(`${battleState.playerPokemon.name} gained ${expGain} EXP!`);
+            
+            // Check for level up
+            const leveledUp = levelUpPokemon(battleState.playerPokemon);
+            if (leveledUp) {
+                setTimeout(() => {
+                    queueBattleMessage(`${battleState.playerPokemon.name} grew to level ${battleState.playerPokemon.level}!`);
+                    processBattleMessages();
+                }, 500);
+            }
         }
         
         // Give money for trainer battles
@@ -1947,10 +2015,12 @@ function useItem(itemType) {
                 queueBattleMessage(`Gotcha! ${battleState.enemyPokemon.name} was caught!`);
                 processBattleMessages();
                 
-                // Add to party
+                // Add to party - create a fresh copy with full HP and reset experience
                 const caughtPokemon = {
                     ...battleState.enemyPokemon,
-                    hp: battleState.enemyPokemon.maxHp
+                    hp: battleState.enemyPokemon.maxHp,
+                    experience: 0,
+                    expToNextLevel: Math.floor(100 * Math.pow(battleState.enemyPokemon.level, 1.5))
                 };
                 player.party.push(caughtPokemon);
                 
@@ -2307,12 +2377,18 @@ function giveStarter(pokemonKey) {
     const pokemonData = POKEMON_DATA[pokemonKey];
     if (!pokemonData) return;
 
-    const newPokemon = {
-        ...pokemonData,
-        level: 5,
-        hp: pokemonData.maxHp,
-        maxHp: pokemonData.maxHp
-    };
+    const newPokemon = createPokemon(pokemonKey, 5);
+    if (!newPokemon) {
+        // Fallback to bulbasaur if creation fails
+        newPokemon = {
+            ...pokemonData,
+            level: 5,
+            hp: pokemonData.maxHp,
+            maxHp: pokemonData.maxHp,
+            experience: 0,
+            expToNextLevel: Math.floor(100 * Math.pow(5, 1.5))
+        };
+    }
 
     player.party.push(newPokemon);
     starterGiven = true; // Mark starter as given
