@@ -396,11 +396,25 @@ const maps = {
             { x: 0, y: 0, width: 12, height: 1, sprite: 'house-wall', type: 'wall' },
             { x: 0, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
             { x: 11, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
-            { x: 0, y: 11, width: 12, height: 1, sprite: 'house-floor', type: 'floor' },
+            { x: 0, y: 11, width: 12, height: 1, sprite: 'grass', type: 'floor' },
             { x: 6, y: 11, sprite: 'door', type: 'door', destination: 'pallet-town', destX: 4, destY: 5 },
             { x: 4, y: 5, sprite: 'pc', type: 'interactable', action: 'heal', name: 'Healing Machine', dialogue: ['The healing machine is on...', 'Your pokemon have been healed to full health!'] },
             { x: 7, y: 5, sprite: 'counter', type: 'decoration' },
-            { x: 8, y: 5, sprite: 'counter', type: 'decoration' }
+            { x: 8, y: 5, sprite: 'counter', type: 'decoration' },
+            // Add grass patches inside pokecenter
+            { x: 2, y: 3, sprite: 'grass', type: 'grass' },
+            { x: 3, y: 3, sprite: 'grass', type: 'grass' },
+            { x: 8, y: 3, sprite: 'grass', type: 'grass' },
+            { x: 9, y: 3, sprite: 'grass', type: 'grass' },
+            { x: 2, y: 8, sprite: 'grass', type: 'grass' },
+            { x: 3, y: 8, sprite: 'grass', type: 'grass' },
+            { x: 8, y: 8, sprite: 'grass', type: 'grass' },
+            { x: 9, y: 8, sprite: 'grass', type: 'grass' },
+            // Add some flowers for decoration
+            { x: 2, y: 4, sprite: 'flower', type: 'decoration' },
+            { x: 9, y: 4, sprite: 'flower', type: 'decoration' },
+            { x: 2, y: 7, sprite: 'flower', type: 'decoration' },
+            { x: 9, y: 7, sprite: 'flower', type: 'decoration' }
         ],
         exits: [],
         encounterRate: 0,
@@ -1356,8 +1370,11 @@ function getAttackAnimationOffset(who) {
 let pokecenterSpawnPoint = null;
 
 function endBattle(won, isTrainerBattle = false) {
-    document.getElementById('battle-ui').classList.remove('active');
-    document.getElementById('move-selection').classList.remove('active');
+    // Always ensure battle UI is hidden properly
+    const battleUI = document.getElementById('battle-ui');
+    const moveSelection = document.getElementById('move-selection');
+    if (battleUI) battleUI.classList.remove('active');
+    if (moveSelection) moveSelection.classList.remove('active');
     
     if (won) {
         // Gain experience (simplified)
@@ -1407,9 +1424,14 @@ function endBattle(won, isTrainerBattle = false) {
         showingMessage: false
     };
 
-    // Clear battle messages
+    // Clear battle messages and ensure UI state is correct
     setTimeout(() => {
         processBattleMessages();
+        // Double check UI is hidden
+        const battleUI = document.getElementById('battle-ui');
+        const moveSelection = document.getElementById('move-selection');
+        if (battleUI) battleUI.classList.remove('active');
+        if (moveSelection) moveSelection.classList.remove('active');
     }, 1000);
 }
 
@@ -1984,7 +2006,25 @@ function runFromBattle() {
         queueBattleMessage('Got away safely!');
         processBattleMessages();
         setTimeout(() => {
-            endBattle(false, false);
+            // End battle without teleporting - just return to roaming
+            document.getElementById('battle-ui').classList.remove('active');
+            document.getElementById('move-selection').classList.remove('active');
+            currentState = GameState.ROAMING;
+            battleState = {
+                playerPokemon: null,
+                enemyPokemon: null,
+                turn: 'player',
+                phase: 'menu',
+                animating: false,
+                wildBattle: true,
+                trainerBattle: false,
+                trainerName: '',
+                messageQueue: [],
+                showingMessage: false
+            };
+            setTimeout(() => {
+                processBattleMessages();
+            }, 500);
         }, 1500);
     } else {
         queueBattleMessage("Can't escape!");
