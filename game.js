@@ -1175,6 +1175,7 @@ function executePlayerMove(moveName) {
             setTimeout(() => {
                 battleState.animating = false;
                 battleState.turn = 'enemy';
+                battleState.phase = 'action';
                 enemyTurn();
             }, 2000);
         }
@@ -1401,7 +1402,7 @@ function render() {
                 // For counters and other multi-tile objects, draw across multiple tiles
                 ctx.drawImage(sprites[obj.sprite], obj.x * TILE_SIZE, obj.y * TILE_SIZE, TILE_SIZE * width, TILE_SIZE);
             } else if (obj.type === 'item' && obj.item && sprites[obj.item]) {
-                // First draw the grass tile beneath the item
+                // First draw the ground tile beneath the item (grass, sand, dirt-path, etc.)
                 const tileX = obj.x;
                 const tileY = obj.y;
                 if (map.tiles[tileY] && map.tiles[tileY][tileX]) {
@@ -1411,11 +1412,15 @@ function render() {
                         ctx.drawImage(sprites[spriteName], tileX * TILE_SIZE, tileY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                     }
                 }
-                // Then draw the item centered on its tile
+                // Then draw the item centered on its tile, slightly smaller to show the tile beneath
                 const itemSprite = sprites[obj.item];
-                const offsetX = (TILE_SIZE - itemSprite.width) / 2;
-                const offsetY = (TILE_SIZE - itemSprite.height) / 2;
-                ctx.drawImage(itemSprite, obj.x * TILE_SIZE + offsetX, obj.y * TILE_SIZE + offsetY);
+                const offsetX = (TILE_SIZE - itemSprite.width * 0.8) / 2;
+                const offsetY = (TILE_SIZE - itemSprite.height * 0.8) / 2;
+                ctx.save();
+                ctx.translate(obj.x * TILE_SIZE + TILE_SIZE / 2, obj.y * TILE_SIZE + TILE_SIZE / 2);
+                ctx.scale(0.8, 0.8);
+                ctx.drawImage(itemSprite, -itemSprite.width / 2, -itemSprite.height / 2, itemSprite.width, itemSprite.height);
+                ctx.restore();
             }
         }
     }
@@ -1546,10 +1551,10 @@ function renderBattle() {
         if (enemySprite) {
             // Get animation offset
             const offset = getAttackAnimationOffset('enemy');
-            // Draw the actual sprite scaled appropriately and positioned correctly
+            // Draw the actual sprite scaled appropriately and positioned correctly - slightly smaller
             ctx.save();
             ctx.translate(550 + offset.x, 150 + offset.y);  // Better position - more centered vertically
-            ctx.scale(1.5, 1.5);      // Proper scale - not too big
+            ctx.scale(1.2, 1.2);      // Smaller scale for better visibility
             ctx.drawImage(enemySprite, -enemySprite.width / 2, -enemySprite.height / 2, enemySprite.width, enemySprite.height);
             ctx.restore();
         }
@@ -1562,10 +1567,10 @@ function renderBattle() {
         if (playerSprite) {
             // Get animation offset
             const offset = getAttackAnimationOffset('player');
-            // Draw the actual sprite scaled appropriately and positioned correctly
+            // Draw the actual sprite scaled appropriately and positioned correctly - slightly smaller
             ctx.save();
             ctx.translate(250 + offset.x, 350 + offset.y);  // Better position - above UI area
-            ctx.scale(1.5, 1.5);      // Proper scale - not too big
+            ctx.scale(1.2, 1.2);      // Smaller scale for better visibility
             ctx.drawImage(playerSprite, -playerSprite.width / 2, -playerSprite.height / 2, playerSprite.width, playerSprite.height);
             ctx.restore();
         }
