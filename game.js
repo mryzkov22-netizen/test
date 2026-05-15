@@ -660,7 +660,7 @@ function initializeMap(mapKey) {
         for (let x = 0; x < map.width; x++) {
             // Default tile based on map type
             let tile = 'grass';
-            if (mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym')) {
+            if (mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym') || mapKey.includes('pokecenter')) {
                 tile = 'house-floor';
             } else if (mapKey.includes('cave')) {
                 tile = 'sand';
