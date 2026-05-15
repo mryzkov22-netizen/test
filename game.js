@@ -301,6 +301,7 @@ const player = {
     speed: 0.15,
     currentMap: 'pallet-town',
     party: [],
+    money: 3000,
     inventory: {
         potions: 5,
         pokeballs: 10,
@@ -647,11 +648,21 @@ function initializeMap(mapKey) {
                             if (obj.type === 'grass') {
                                 map.tiles[ty][tx].isGrass = true;
                             }
+                            // Store floor tile under items for proper rendering
+                            if (obj.type === 'item') {
+                                map.tiles[ty][tx].floorTile = map.tiles[ty][tx].type;
+                            }
                         }
                     }
                 }
             }
         });
+    }
+    
+    // Set pokecenter spawn point for each city/town
+    if (mapKey.includes('town') || mapKey.includes('city')) {
+        // Find a suitable spawn point near the center or entrance
+        pokecenterSpawnPoint = { map: mapKey, x: 10, y: 5 };
     }
 }
 
@@ -1161,12 +1172,12 @@ function executePlayerMove(moveName) {
                         processBattleMessages();
                         
                         setTimeout(() => {
-                            endBattle(true);
+                            endBattle(true, true);
                         }, 2000);
                     } else {
                         // Wild battle - victory
                         setTimeout(() => {
-                            endBattle(true);
+                            endBattle(true, false);
                         }, 2000);
                     }
                 }, 2000);
@@ -1202,6 +1213,7 @@ function enemyTurn() {
             battleState.animating = false;
             battleState.turn = 'player';
             battleState.phase = 'menu';
+            document.getElementById('battle-menu').style.display = 'grid';
             updateBattleUI();
         }, 2000);
         return;
@@ -1250,7 +1262,7 @@ function enemyTurn() {
                         queueBattleMessage('You have no more Pokemon!');
                         processBattleMessages();
                         setTimeout(() => {
-                            endBattle(false);
+                            endBattle(false, battleState.trainerBattle);
                         }, 2000);
                     }
                 }, 2000);
@@ -1312,7 +1324,9 @@ function getAttackAnimationOffset(who) {
 }
 
 // End battle
-function endBattle(won) {
+let pokecenterSpawnPoint = null;
+
+function endBattle(won, isTrainerBattle = false) {
     document.getElementById('battle-ui').classList.remove('active');
     document.getElementById('move-selection').classList.remove('active');
     
@@ -1320,6 +1334,33 @@ function endBattle(won) {
         // Gain experience (simplified)
         if (battleState.playerPokemon) {
             queueBattleMessage(`${battleState.playerPokemon.name} gained experience!`);
+        }
+        
+        // Give money for trainer battles
+        if (isTrainerBattle || battleState.trainerBattle) {
+            const rewardMoney = Math.floor(100 + Math.random() * 200);
+            player.money += rewardMoney;
+            setTimeout(() => {
+                queueBattleMessage(`Received $${rewardMoney} prize money!`);
+                processBattleMessages();
+            }, 500);
+        }
+    } else {
+        // Player lost - teleport to pokecenter
+        if (pokecenterSpawnPoint) {
+            player.x = pokecenterSpawnPoint.x * TILE_SIZE;
+            player.y = pokecenterSpawnPoint.y * TILE_SIZE;
+            player.currentMap = pokecenterSpawnPoint.map;
+            
+            // Heal all pokemon
+            player.party.forEach(p => {
+                p.hp = p.maxHp;
+            });
+            
+            queueBattleMessage('You blacked out and were taken to the Pokemon Center!');
+            setTimeout(() => {
+                processBattleMessages();
+            }, 500);
         }
     }
 
@@ -1862,7 +1903,7 @@ function useItem(itemType) {
                 player.party.push(caughtPokemon);
                 
                 setTimeout(() => {
-                    endBattle(true);
+                    endBattle(true, false);
                 }, 2000);
             } else {
                 queueBattleMessage(`Darn! The Pokemon broke free!`);
@@ -1913,7 +1954,7 @@ function runFromBattle() {
         queueBattleMessage('Got away safely!');
         processBattleMessages();
         setTimeout(() => {
-            endBattle(false);
+            endBattle(false, false);
         }, 1500);
     } else {
         queueBattleMessage("Can't escape!");
