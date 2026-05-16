@@ -2106,6 +2106,10 @@ function runFromBattle() {
     }
 }
 
+// Make toggleInventory and toggleParty available globally for onclick handlers in HTML
+window.toggleInventory = toggleInventory;
+window.toggleParty = toggleParty;
+
 // Toggle inventory
 function toggleInventory() {
     const panel = document.getElementById('inventory-panel');
@@ -2136,7 +2140,12 @@ function toggleInventory() {
                 <div style="font-size: 8px; margin-top: 3px;">${item.desc}</div>
             `;
             div.onclick = () => {
-                if (currentState === GameState.BATTLE && item.key !== 'pokeball') {
+                if (currentState === GameState.BATTLE && item.key === 'pokeball') {
+                    // Use pokeball during battle
+                    useItem(item.key);
+                    panel.classList.remove('active');
+                } else if (currentState === GameState.BATTLE && item.key !== 'pokeball') {
+                    // Use other items during battle
                     useItem(item.key);
                     panel.classList.remove('active');
                 } else if (currentState === GameState.ROAMING && item.key === 'potion') {
