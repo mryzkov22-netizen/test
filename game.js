@@ -40,6 +40,9 @@ Object.values(soundEffects).forEach(audio => {
     audio.volume = 0.5;
 });
 
+// Make footsteps louder
+soundEffects['footstep'].volume = 0.8;
+
 function playSound(soundName) {
     const sound = soundEffects[soundName];
     if (sound) {
@@ -334,7 +337,8 @@ const GameState = {
     DIALOGUE: 'dialogue',
     MENU: 'menu',
     TRANSITION: 'transition',
-    MAIN_MENU: 'main_menu'
+    MAIN_MENU: 'main_menu',
+    BATTLE_INTRO: 'battle_intro'  // New state for 3-second delay before battle
 };
 
 // Player object
@@ -821,6 +825,9 @@ function checkExits() {
 
 // Map transition
 function transitionToMap(newMap, newX, newY) {
+    // Play door sound for map transitions
+    playSound('door');
+    
     currentState = GameState.TRANSITION;
     
     setTimeout(() => {
@@ -1018,6 +1025,9 @@ function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = 
     if (battleTransitionTimeout) {
         clearTimeout(battleTransitionTimeout);
     }
+    
+    // Set state to BATTLE_INTRO to prevent movement during the 3-second delay
+    currentState = GameState.BATTLE_INTRO;
     
     // Play battle music immediately
     playMusic('battle');
@@ -1594,6 +1604,9 @@ function endBattle(won, isTrainerBattle = false) {
         showingMessage: false
     };
 
+    // Switch back to location music after battle ends
+    playMusic(getMusicForMap(player.currentMap));
+
     // Clear battle messages and ensure UI state is correct
     setTimeout(() => {
         processBattleMessages();
@@ -1862,6 +1875,11 @@ function handleInput() {
         return;
     }
 
+    // Prevent movement during battle intro (3-second delay)
+    if (currentState === GameState.BATTLE_INTRO) {
+        return;
+    }
+
     if (currentState === GameState.DIALOGUE) {
         if (keys.Enter || keys.Space) {
             keys.Enter = false;
@@ -1951,8 +1969,6 @@ function handleInteraction() {
     // Check for door first
     const doorObj = checkObjectInteraction();
     if (doorObj && doorObj.type === 'door') {
-        // Play door sound
-        playSound('door');
         transitionToMap(doorObj.destination, doorObj.destX, doorObj.destY);
         return;
     }
