@@ -1313,6 +1313,7 @@ function enemyTurn() {
                             battleState.animating = false;
                             battleState.turn = 'player';
                             battleState.phase = 'menu';
+                            document.getElementById('battle-menu').style.display = 'grid';
                             updateBattleUI();
                         }, 2000);
                     } else {
@@ -2176,6 +2177,13 @@ function toggleParty() {
     
     if (panel.classList.contains('active')) {
         panel.classList.remove('active');
+        if (currentState === GameState.BATTLE) {
+            // Return to battle state
+            battleState.phase = 'menu';
+            updateBattleUI();
+        } else if (currentState === GameState.MENU) {
+            currentState = GameState.ROAMING;
+        }
     } else {
         // Populate party
         grid.innerHTML = '';
@@ -2189,8 +2197,9 @@ function toggleParty() {
                 
                 const hpPercent = (pokemon.hp / pokemon.maxHp) * 100;
                 
+                // Use front sprite for display
                 div.innerHTML = `
-                    ${sprites[pokemon.backSprite] ? `<img src="${pokemon.backSprite}.png" class="party-sprite" alt="${pokemon.name}">` : '❓'}
+                    ${sprites[pokemon.frontSprite] ? `<img src="${pokemon.frontSprite}.png" class="party-sprite" alt="${pokemon.name}">` : '❓'}
                     <div class="party-info">
                         <div class="party-name">${pokemon.name}</div>
                         <div class="party-hp">Lv.${pokemon.level}</div>
@@ -2200,11 +2209,42 @@ function toggleParty() {
                         <div style="font-size: 8px;">${pokemon.hp}/${pokemon.maxHp} HP</div>
                     </div>
                 `;
+                
+                // Add click handler for switching pokemon during battle
+                if (currentState === GameState.BATTLE && pokemon.hp > 0 && pokemon !== battleState.playerPokemon) {
+                    div.style.cursor = 'pointer';
+                    div.style.borderColor = '#3498db';
+                    div.onclick = () => {
+                        // Switch to this pokemon
+                        const previousPokemon = battleState.playerPokemon;
+                        battleState.playerPokemon = pokemon;
+                        
+                        queueBattleMessage(`Come back, ${previousPokemon.name}!`);
+                        processBattleMessages();
+                        
+                        setTimeout(() => {
+                            queueBattleMessage(`Go! ${pokemon.name}!`);
+                            processBattleMessages();
+                            
+                            setTimeout(() => {
+                                panel.classList.remove('active');
+                                battleState.phase = 'menu';
+                                battleState.turn = 'enemy';
+                                updateBattleUI();
+                                enemyTurn();
+                            }, 1500);
+                        }, 1000);
+                    };
+                }
+                
                 grid.appendChild(div);
             });
         }
 
         panel.classList.add('active');
+        if (currentState === GameState.ROAMING) {
+            currentState = GameState.MENU;
+        }
     }
 }
 
