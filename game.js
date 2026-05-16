@@ -417,7 +417,7 @@ const maps = {
         height: 12,
         tiles: [],
         npcs: [
-            { x: 6, y: 8, sprite: 'npc-down', name: 'Mom', dialogue: ['Good morning, dear!', 'Professor Oak called for you.', 'He wants to see you at his lab right away.', 'Please go downstairs and head to his lab!', 'Your adventure begins today!'], triggersQuest: true }
+            { x: 6, y: 7, sprite: 'npc-down', name: 'Mom', dialogue: ['Good morning, dear!', 'Professor Oak called for you.', 'He wants to see you at his lab right away.', 'Please go downstairs and head to his lab!', 'Your adventure begins today!'], triggersQuest: true }
         ],
         objects: [
             // Walls
@@ -439,10 +439,7 @@ const maps = {
             { x: 9, y: 2, sprite: 'bookshelf', type: 'decoration' },
             // Table
             { x: 8, y: 5, sprite: 'counter', type: 'decoration' },
-            { x: 9, y: 5, sprite: 'counter', type: 'decoration' },
-            // Flowers for decoration
-            { x: 10, y: 3, sprite: 'flower', type: 'decoration' },
-            { x: 1, y: 7, sprite: 'flower', type: 'decoration' }
+            { x: 9, y: 5, sprite: 'counter', type: 'decoration' }
         ],
         exits: [],
         encounterRate: 0,
@@ -763,7 +760,7 @@ function initializeMap(mapKey) {
         for (let x = 0; x < map.width; x++) {
             // Default tile based on map type
             let tile = 'grass';
-            if (mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym') || mapKey.includes('pokecenter')) {
+            if (mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym') || mapKey.includes('pokecenter') || mapKey.includes('house')) {
                 tile = 'house-floor';
             } else if (mapKey.includes('cave')) {
                 tile = 'sand';
@@ -1959,9 +1956,16 @@ function handleInput() {
 
     if (currentState === GameState.DIALOGUE) {
         if (keys.Enter || keys.Space) {
+            // Reset key states immediately to prevent multiple triggers
+            const hadEnter = keys.Enter;
+            const hadSpace = keys.Space;
             keys.Enter = false;
             keys.Space = false;
-            showNextDialogueLine();
+            
+            // Only advance dialogue if we actually had a key press
+            if (hadEnter || hadSpace) {
+                showNextDialogueLine();
+            }
         }
         return;
     }
@@ -2703,7 +2707,7 @@ async function init() {
     
     // Set player position in their bedroom
     player.x = 6 * TILE_SIZE;
-    player.y = 8 * TILE_SIZE;
+    player.y = 7 * TILE_SIZE;
     player.currentMap = 'player-house-2f';
     
     // Show welcome message
