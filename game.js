@@ -18,7 +18,8 @@ const CANVAS_HEIGHT = 600;
 let currentMusic = null;
 const musicTracks = {
     'town': new Audio('town_ost.mp3'),
-    'route': new Audio('route.mp3')
+    'route': new Audio('route.mp3'),
+    'battle': new Audio('battle_ost.mp3')
 };
 
 // Set music to loop
@@ -26,6 +27,28 @@ Object.values(musicTracks).forEach(audio => {
     audio.loop = true;
     audio.volume = 0.3;
 });
+
+// Sound effects
+const soundEffects = {
+    'footstep': new Audio('one_footstep_sound.mp3'),
+    'door': new Audio('door_sound.mp3'),
+    'pop': new Audio('pop_sound.mp3')
+};
+
+// Configure sound effects
+Object.values(soundEffects).forEach(audio => {
+    audio.volume = 0.5;
+});
+
+function playSound(soundName) {
+    const sound = soundEffects[soundName];
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(() => {
+            // Ignore autoplay errors
+        });
+    }
+}
 
 function playMusic(trackName) {
     // Stop current music
@@ -938,6 +961,9 @@ function checkObjectInteraction() {
 function showDialogue(name, lines, callback) {
     currentState = GameState.DIALOGUE;
     
+    // Play pop sound for dialogue
+    playSound('pop');
+    
     // Initialize dialogue state
     dialogueState.active = true;
     dialogueState.name = name;
@@ -986,61 +1012,109 @@ function closeDialogue() {
 }
 
 // Start battle
+let battleTransitionTimeout = null;
 function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = '') {
-    currentState = GameState.BATTLE;
-    
-    // If player has no pokemon, they can't battle - just return silently (no alert)
-    if (player.party.length === 0) {
-        currentState = GameState.ROAMING;
-        return;
+    // Clear any existing battle transition
+    if (battleTransitionTimeout) {
+        clearTimeout(battleTransitionTimeout);
     }
-
-    // Find first non-fainted pokemon
-    let availablePokemon = player.party.filter(p => p.hp > 0);
-    if (availablePokemon.length === 0) {
-        currentState = GameState.ROAMING;
-        return;
-    }
-
-    battleState.playerPokemon = availablePokemon[0];
-    battleState.wildBattle = !isTrainer;
-    battleState.trainerBattle = isTrainer;
-    battleState.trainerName = trainerName;
-    battleState.turn = 'player';
-    battleState.phase = 'menu';
-    battleState.animating = false;
-    battleState.messageQueue = [];
-    battleState.showingMessage = false;
-
-    // Create enemy pokemon using createPokemon function
-    const randomIndex = Math.floor(Math.random() * enemyPokemonList.length);
-    const pokemonKey = enemyPokemonList[randomIndex];
-    const level = levels ? levels[randomIndex] || 5 : 5;
     
-    battleState.enemyPokemon = createPokemon(pokemonKey, level);
-    if (!battleState.enemyPokemon) {
-        battleState.enemyPokemon = createPokemon('pikachu', level);
-    }
-    battleState.enemyPokemon.currentMove = 0;
-
-    // Update battle UI
-    updateBattleUI();
-    document.getElementById('battle-ui').classList.add('active');
-    document.getElementById('battle-menu').style.display = 'grid';
-    document.getElementById('move-selection').classList.remove('active');
+    // Play battle music immediately
+    playMusic('battle');
     
-    // Hide menu button during battle
-    const menuBtn = document.getElementById('menu-btn');
-    if (menuBtn) menuBtn.style.display = 'none';
+    // Show battle transition window
+    const battleTypeText = isTrainer ? 'Trainer Battle!' : 'Wild Pokemon!';
+    showBattleTransition(battleTypeText);
+    
+    // Set timeout for 3 seconds before battle UI opens
+    battleTransitionTimeout = setTimeout(() => {
+        // Hide transition
+        const transitionEl = document.getElementById('battle-transition');
+        if (transitionEl) {
+            transitionEl.classList.remove('active');
+        }
+        
+        // Now actually start the battle
+        currentState = GameState.BATTLE;
+        
+        // If player has no pokemon, they can't battle - just return silently (no alert)
+        if (player.party.length === 0) {
+            currentState = GameState.ROAMING;
+            hideBattleTransition();
+            return;
+        }
 
-    // Show battle start message
-    if (isTrainer) {
-        queueBattleMessage(`${trainerName} wants to battle!`);
+        // Find first non-fainted pokemon
+        let availablePokemon = player.party.filter(p => p.hp > 0);
+        if (availablePokemon.length === 0) {
+            currentState = GameState.ROAMING;
+            hideBattleTransition();
+            return;
+        }
+
+        battleState.playerPokemon = availablePokemon[0];
+        battleState.wildBattle = !isTrainer;
+        battleState.trainerBattle = isTrainer;
+        battleState.trainerName = trainerName;
+        battleState.turn = 'player';
+        battleState.phase = 'menu';
+        battleState.animating = false;
+        battleState.messageQueue = [];
+        battleState.showingMessage = false;
+
+        // Create enemy pokemon using createPokemon function
+        const randomIndex = Math.floor(Math.random() * enemyPokemonList.length);
+        const pokemonKey = enemyPokemonList[randomIndex];
+        const level = levels ? levels[randomIndex] || 5 : 5;
+        
+        battleState.enemyPokemon = createPokemon(pokemonKey, level);
+        if (!battleState.enemyPokemon) {
+            battleState.enemyPokemon = createPokemon('pikachu', level);
+        }
+        battleState.enemyPokemon.currentMove = 0;
+
+        // Update battle UI
+        updateBattleUI();
+        document.getElementById('battle-ui').classList.add('active');
+        document.getElementById('battle-menu').style.display = 'grid';
+        document.getElementById('move-selection').classList.remove('active');
+        
+        // Hide menu button during battle
+        const menuBtn = document.getElementById('menu-btn');
+        if (menuBtn) menuBtn.style.display = 'none';
+
+        // Show battle start message
+        if (isTrainer) {
+            queueBattleMessage(`${trainerName} wants to battle!`);
+        } else {
+            queueBattleMessage(`Wild ${battleState.enemyPokemon.name} appeared!`);
+        }
+        
+        processBattleMessages();
+    }, 3000);
+}
+
+// Show battle transition overlay
+function showBattleTransition(text) {
+    let transitionEl = document.getElementById('battle-transition');
+    if (!transitionEl) {
+        transitionEl = document.createElement('div');
+        transitionEl.id = 'battle-transition';
+        transitionEl.className = 'battle-transition';
+        transitionEl.innerHTML = `<div class="battle-transition-text">${text}</div>`;
+        document.body.appendChild(transitionEl);
     } else {
-        queueBattleMessage(`Wild ${battleState.enemyPokemon.name} appeared!`);
+        transitionEl.querySelector('.battle-transition-text').textContent = text;
     }
-    
-    processBattleMessages();
+    transitionEl.classList.add('active');
+}
+
+// Hide battle transition
+function hideBattleTransition() {
+    const transitionEl = document.getElementById('battle-transition');
+    if (transitionEl) {
+        transitionEl.classList.remove('active');
+    }
 }
 
 // Queue battle message
@@ -1858,6 +1932,9 @@ function handleInput() {
             player.targetX = newX;
             player.targetY = newY;
             player.moveProgress = 0;
+            
+            // Play footstep sound
+            playSound('footstep');
         }
     }
 
@@ -1874,6 +1951,8 @@ function handleInteraction() {
     // Check for door first
     const doorObj = checkObjectInteraction();
     if (doorObj && doorObj.type === 'door') {
+        // Play door sound
+        playSound('door');
         transitionToMap(doorObj.destination, doorObj.destX, doorObj.destY);
         return;
     }
@@ -1881,6 +1960,9 @@ function handleInteraction() {
     // Check for interactable objects
     const obj = checkObjectInteraction();
     if (obj) {
+        // Play pop sound for interactions
+        playSound('pop');
+        
         if (obj.type === 'item') {
             // Pick up item
             const map = maps[player.currentMap];
@@ -2154,6 +2236,9 @@ function toggleInventory() {
         }
         currentState = GameState.ROAMING;
     } else {
+        // Play pop sound for menu interaction
+        playSound('pop');
+        
         // Populate inventory
         grid.innerHTML = '';
         
@@ -2216,6 +2301,9 @@ function toggleParty() {
             currentState = GameState.ROAMING;
         }
     } else {
+        // Play pop sound for menu interaction
+        playSound('pop');
+        
         // Populate party
         grid.innerHTML = '';
         
