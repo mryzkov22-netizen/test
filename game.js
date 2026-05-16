@@ -58,10 +58,11 @@ function playMusic(trackName) {
     if (currentMusic) {
         currentMusic.pause();
         currentMusic.currentTime = 0;
+        currentMusic = null;
     }
     
-    // Play new music if available
-    if (musicTracks[trackName]) {
+    // Play new music if available and trackName is not null
+    if (trackName && musicTracks[trackName]) {
         musicTracks[trackName].play().catch(() => {
             // Autoplay might be blocked, ignore error
         });
@@ -70,7 +71,10 @@ function playMusic(trackName) {
 }
 
 function getMusicForMap(mapKey) {
-    if (mapKey.includes('town') || mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym')) {
+    // No music inside houses (player house, pokecenter, lab, mart, gym)
+    if (mapKey.includes('house') || mapKey.includes('pokecenter') || mapKey.includes('lab') || mapKey.includes('mart') || mapKey.includes('gym')) {
+        return null; // No music inside buildings
+    } else if (mapKey.includes('town')) {
         return 'town';
     } else if (mapKey.includes('route') || mapKey.includes('cave')) {
         return 'route';
@@ -407,6 +411,74 @@ const keys = {
 
 // Maps data
 const maps = {
+    'player-house-2f': {
+        name: "Player's House - 2F",
+        width: 12,
+        height: 12,
+        tiles: [],
+        npcs: [
+            { x: 6, y: 8, sprite: 'npc-down', name: 'Mom', dialogue: ['Good morning, dear!', 'Professor Oak called for you.', 'He wants to see you at his lab right away.', 'Please go downstairs and head to his lab!', 'Your adventure begins today!'], triggersQuest: true }
+        ],
+        objects: [
+            // Walls
+            { x: 0, y: 0, width: 12, height: 1, sprite: 'house-wall', type: 'wall' },
+            { x: 0, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
+            { x: 11, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
+            { x: 0, y: 11, width: 12, height: 1, sprite: 'house-floor', type: 'floor' },
+            // Stairs down
+            { x: 6, y: 11, sprite: 'door', type: 'door', destination: 'player-house-1f', destX: 6, destY: 1 },
+            // Player's room - bed
+            { x: 2, y: 3, sprite: 'house-floor', type: 'floor' },
+            { x: 3, y: 3, sprite: 'house-floor', type: 'floor' },
+            { x: 2, y: 4, sprite: 'house-floor', type: 'floor' },
+            { x: 3, y: 4, sprite: 'house-floor', type: 'floor' },
+            // PC in room
+            { x: 5, y: 2, sprite: 'pc', type: 'interactable', action: 'heal', name: 'PC', dialogue: ["It's your PC...", 'Your Pokemon are healthy!'] },
+            // Bookshelf
+            { x: 8, y: 2, sprite: 'bookshelf', type: 'decoration' },
+            { x: 9, y: 2, sprite: 'bookshelf', type: 'decoration' },
+            // Table
+            { x: 8, y: 5, sprite: 'counter', type: 'decoration' },
+            { x: 9, y: 5, sprite: 'counter', type: 'decoration' },
+            // Flowers for decoration
+            { x: 10, y: 3, sprite: 'flower', type: 'decoration' },
+            { x: 1, y: 7, sprite: 'flower', type: 'decoration' }
+        ],
+        exits: [],
+        encounterRate: 0,
+        wildPokemon: []
+    },
+    'player-house-1f': {
+        name: "Player's House - 1F",
+        width: 12,
+        height: 12,
+        tiles: [],
+        npcs: [],
+        objects: [
+            // Walls
+            { x: 0, y: 0, width: 12, height: 1, sprite: 'house-wall', type: 'wall' },
+            { x: 0, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
+            { x: 11, y: 0, width: 1, height: 12, sprite: 'house-wall', type: 'wall' },
+            { x: 0, y: 11, width: 12, height: 1, sprite: 'house-floor', type: 'floor' },
+            // Stairs up
+            { x: 6, y: 1, sprite: 'door', type: 'door', destination: 'player-house-2f', destX: 6, destY: 10 },
+            // Front door
+            { x: 6, y: 11, sprite: 'door', type: 'door', destination: 'pallet-town', destX: 8, destY: 8 },
+            // TV
+            { x: 2, y: 3, sprite: 'pc', type: 'interactable', action: 'heal', name: 'TV', dialogue: ["The TV is on...", 'A Pokemon battle is being shown!'] },
+            // Table and chairs
+            { x: 8, y: 4, sprite: 'counter', type: 'decoration' },
+            { x: 9, y: 4, sprite: 'counter', type: 'decoration' },
+            { x: 8, y: 6, sprite: 'house-floor', type: 'floor' },
+            { x: 9, y: 6, sprite: 'house-floor', type: 'floor' },
+            // Plant
+            { x: 10, y: 2, sprite: 'flower', type: 'decoration' },
+            { x: 1, y: 8, sprite: 'flower', type: 'decoration' }
+        ],
+        exits: [],
+        encounterRate: 0,
+        wildPokemon: []
+    },
     'pallet-town': {
         name: 'Pallet Town',
         width: 20,
@@ -430,7 +502,11 @@ const maps = {
             // Pokecenter
             { x: 3, y: 3, sprite: 'house-wall', type: 'wall' },
             { x: 4, y: 3, sprite: 'door', type: 'door', destination: 'pallet-pokecenter', destX: 5, destY: 10 },
-            { x: 5, y: 3, sprite: 'house-wall', type: 'wall' }
+            { x: 5, y: 3, sprite: 'house-wall', type: 'wall' },
+            // Player's house
+            { x: 7, y: 8, sprite: 'house-wall', type: 'wall' },
+            { x: 8, y: 8, sprite: 'door', type: 'door', destination: 'player-house-1f', destX: 6, destY: 10 },
+            { x: 9, y: 8, sprite: 'house-wall', type: 'wall' }
         ],
         exits: [
             { x: 9, y: 0, width: 2, direction: 'north', destination: 'route-1', destX: 10, destY: 14 }
@@ -2619,17 +2695,17 @@ function giveStarter(pokemonKey) {
 async function init() {
     await loadSprites();
     
-    // Initialize starting map (in background)
-    initializeMap('pallet-town');
+    // Initialize starting map - player's house 2nd floor
+    initializeMap('player-house-2f');
     
-    // Set player position
-    player.x = 10 * TILE_SIZE;
-    player.y = 7 * TILE_SIZE;
-    player.currentMap = 'pallet-town';
+    // Set player position in their bedroom
+    player.x = 6 * TILE_SIZE;
+    player.y = 8 * TILE_SIZE;
+    player.currentMap = 'player-house-2f';
     
     // Show welcome message
     setTimeout(() => {
-        showLocationName('Pallet Town');
+        showLocationName("Player's House - 2F");
     }, 1000);
 
     // Setup menu button (opens menu panel)
