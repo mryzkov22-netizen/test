@@ -417,7 +417,7 @@ const maps = {
         height: 12,
         tiles: [],
         npcs: [
-            { x: 6, y: 7, sprite: 'npc-down', name: 'Mom', dialogue: ['Good morning, dear!', 'Professor Oak called for you.', 'He wants to see you at his lab right away.', 'Please go downstairs and head to his lab!', 'Your adventure begins today!'], triggersQuest: true }
+            { x: 8, y: 9, sprite: 'npc-down', name: 'Mom', dialogue: ['Good morning, dear!', 'Professor Oak called for you.', 'He wants to see you at his lab right away.', 'Please go downstairs and head to his lab!', 'Your adventure begins today!'], triggersQuest: true }
         ],
         objects: [
             // Walls
