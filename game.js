@@ -347,8 +347,8 @@ const GameState = {
 
 // Player object
 const player = {
-    x: 10 * TILE_SIZE,
-    y: 7 * TILE_SIZE,
+    x: 6 * TILE_SIZE,
+    y: 8 * TILE_SIZE,
     direction: 'down',
     moving: false,
     moveProgress: 0,
@@ -357,7 +357,7 @@ const player = {
     startX: 0,
     startY: 0,
     speed: 0.15,
-    currentMap: 'pallet-town',
+    currentMap: 'player-house-2f',
     party: [],
     money: 3000,
     inventory: {
@@ -1941,9 +1941,9 @@ function handleInput() {
         if (keys.Enter || keys.Space) {
             keys.Enter = false;
             keys.Space = false;
-            // Start the game and play music
+            // Start the game and play appropriate music for current map
             currentState = GameState.ROAMING;
-            playMusic('town');
+            playMusic(getMusicForMap(player.currentMap));
         }
         return;
     }
@@ -2091,7 +2091,10 @@ function handleInteraction() {
     // Check for NPCs
     const npc = checkNPCInteraction();
     if (npc) {
-        if (npc.battle) {
+        if (npc.triggersQuest) {
+            // Special quest-giving NPC (Mom) - just show dialogue
+            showDialogue(npc.name, npc.dialogue);
+        } else if (npc.battle) {
             // Start trainer battle - only if player has pokemon
             if (player.party.length > 0) {
                 // Show trainer's pre-battle dialogue first, then start battle after dialogue ends
