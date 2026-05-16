@@ -1100,11 +1100,20 @@ function updateBattleUI() {
     document.getElementById('enemy-name').textContent = enemyPkmn.name;
     document.getElementById('player-pokemon-name').textContent = playerPkmn.name;
 
+    // Update levels
+    document.getElementById('enemy-level').textContent = `Lv.${enemyPkmn.level}`;
+    document.getElementById('player-level').textContent = `Lv.${playerPkmn.level}`;
+
     updateHealthBar('enemy', enemyPkmn.hp, enemyPkmn.maxHp);
     updateHealthBar('player', playerPkmn.hp, playerPkmn.maxHp);
 
     document.getElementById('enemy-hp-text').textContent = `${enemyPkmn.hp}/${enemyPkmn.maxHp}`;
     document.getElementById('player-hp-text').textContent = `${playerPkmn.hp}/${playerPkmn.maxHp}`;
+
+    // Update experience bar for player pokemon
+    const expPercent = (playerPkmn.experience / playerPkmn.expToNextLevel) * 100;
+    document.getElementById('player-exp').style.width = `${expPercent}%`;
+    document.getElementById('player-exp-text').textContent = `${playerPkmn.experience}/${playerPkmn.expToNextLevel} EXP`;
 }
 
 function updateHealthBar(who, hp, maxHp) {
@@ -1441,7 +1450,12 @@ function endBattle(won, isTrainerBattle = false) {
     if (won) {
         // Gain experience for player's pokemon that participated
         if (battleState.playerPokemon && battleState.enemyPokemon) {
-            const expGain = Math.floor(battleState.enemyPokemon.level * 20);
+            // Base EXP formula: enemy level * multiplier based on species base stats
+            const baseExp = Math.floor(battleState.enemyPokemon.level * 20);
+            // Bonus for higher level opponents - more level = more XP
+            const levelBonus = Math.floor(battleState.enemyPokemon.level * 5);
+            const expGain = baseExp + levelBonus;
+            
             battleState.playerPokemon.experience += expGain;
             queueBattleMessage(`${battleState.playerPokemon.name} gained ${expGain} EXP!`);
             
@@ -1451,8 +1465,17 @@ function endBattle(won, isTrainerBattle = false) {
                 setTimeout(() => {
                     queueBattleMessage(`${battleState.playerPokemon.name} grew to level ${battleState.playerPokemon.level}!`);
                     processBattleMessages();
+                    
+                    // Show stat increases
+                    setTimeout(() => {
+                        queueBattleMessage(`Stats increased!`);
+                        processBattleMessages();
+                    }, 500);
                 }, 500);
             }
+            
+            // Update battle UI to show new EXP bar
+            updateBattleUI();
         }
         
         // Give money for trainer battles
@@ -2204,17 +2227,22 @@ function toggleParty() {
                 div.className = 'party-member' + (pokemon.hp <= 0 ? ' fainted' : '');
                 
                 const hpPercent = (pokemon.hp / pokemon.maxHp) * 100;
+                const expPercent = (pokemon.experience / pokemon.expToNextLevel) * 100;
                 
                 // Use front sprite for display
                 div.innerHTML = `
                     ${sprites[pokemon.frontSprite] ? `<img src="${pokemon.frontSprite}.png" class="party-sprite" alt="${pokemon.name}">` : '❓'}
                     <div class="party-info">
                         <div class="party-name">${pokemon.name}</div>
-                        <div class="party-hp">Lv.${pokemon.level}</div>
+                        <div class="party-level">Lv.${pokemon.level}</div>
                         <div class="party-hp-bar">
                             <div class="party-hp-fill" style="width: ${hpPercent}%"></div>
                         </div>
                         <div style="font-size: 8px;">${pokemon.hp}/${pokemon.maxHp} HP</div>
+                        <div class="party-exp-bar">
+                            <div class="party-exp-fill" style="width: ${expPercent}%"></div>
+                        </div>
+                        <div class="party-exp-text">${pokemon.experience}/${pokemon.expToNextLevel} EXP</div>
                     </div>
                 `;
                 

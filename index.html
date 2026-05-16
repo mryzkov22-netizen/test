@@ -149,6 +149,35 @@
             margin-top: 3px;
         }
         
+        .level-text {
+            font-size: 11px;
+            color: #f39c12;
+            margin-top: 3px;
+            font-weight: bold;
+        }
+        
+        .exp-bar-container {
+            width: 200px;
+            height: 8px;
+            background: #1a252f;
+            border: 2px solid #7f8c8d;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .exp-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.3s ease;
+        }
+        
+        .exp-text {
+            font-size: 10px;
+            color: #bdc3c7;
+            margin-top: 2px;
+        }
+        
         .battle-menu {
             width: 250px;
             padding: 15px;
@@ -499,6 +528,34 @@
             transition: width 0.3s;
         }
         
+        .party-exp-bar {
+            width: 100%;
+            height: 6px;
+            background: #1a252f;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 3px;
+        }
+        
+        .party-exp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.3s;
+        }
+        
+        .party-level {
+            font-size: 10px;
+            color: #f39c12;
+            font-weight: bold;
+            margin-top: 3px;
+        }
+        
+        .party-exp-text {
+            font-size: 8px;
+            color: #bdc3c7;
+            margin-top: 2px;
+        }
+        
         #shop-panel {
             position: absolute;
             top: 50%;
@@ -542,6 +599,7 @@
                 <div class="battle-info">
                     <div class="pokemon-info">
                         <div class="pokemon-name" id="enemy-name">Wild Pokemon</div>
+                        <div class="level-text" id="enemy-level">Lv.5</div>
                         <div class="health-bar-container">
                             <div class="health-bar" id="enemy-health" style="width: 100%"></div>
                         </div>
@@ -551,10 +609,15 @@
                 <div class="battle-info" style="text-align: right;">
                     <div class="pokemon-info">
                         <div class="pokemon-name" id="player-pokemon-name">Pokemon</div>
+                        <div class="level-text" id="player-level">Lv.5</div>
                         <div class="health-bar-container" style="margin-left: auto;">
                             <div class="health-bar" id="player-health" style="width: 100%"></div>
                         </div>
                         <div class="health-text" id="player-hp-text">100/100</div>
+                        <div class="exp-bar-container" style="margin-left: auto;">
+                            <div class="exp-bar" id="player-exp" style="width: 0%"></div>
+                        </div>
+                        <div class="exp-text" id="player-exp-text">0/100 EXP</div>
                     </div>
                 </div>
                 <div class="battle-menu" id="battle-menu">
