@@ -467,10 +467,7 @@ const maps = {
             { x: 8, y: 4, sprite: 'counter', type: 'decoration' },
             { x: 9, y: 4, sprite: 'counter', type: 'decoration' },
             { x: 8, y: 6, sprite: 'house-floor', type: 'floor' },
-            { x: 9, y: 6, sprite: 'house-floor', type: 'floor' },
-            // Plant
-            { x: 10, y: 2, sprite: 'flower', type: 'decoration' },
-            { x: 1, y: 8, sprite: 'flower', type: 'decoration' }
+            { x: 9, y: 6, sprite: 'house-floor', type: 'floor' }
         ],
         exits: [],
         encounterRate: 0,
@@ -809,6 +806,14 @@ function initializeMap(mapKey) {
                             // Store floor tile under items for proper rendering
                             if (obj.type === 'item') {
                                 map.tiles[ty][tx].floorTile = map.tiles[ty][tx].type;
+                            }
+                            // For house decorations (bookshelf, pc, counter, flower), ensure they are not walkable
+                            if (obj.type === 'decoration' && mapKey.includes('house')) {
+                                map.tiles[ty][tx].walkable = false;
+                            }
+                            // For interactables in houses (TV, PC), make them not walkable
+                            if (obj.type === 'interactable' && mapKey.includes('house')) {
+                                map.tiles[ty][tx].walkable = false;
                             }
                         }
                     }
@@ -2616,8 +2621,30 @@ document.getElementById('battle-menu').addEventListener('click', (e) => {
 
 // Keyboard events
 window.addEventListener('keydown', (e) => {
-    // Prevent movement during dialogue, battle intro, and battle
-    if (currentState === GameState.DIALOGUE || currentState === GameState.BATTLE_INTRO || currentState === GameState.BATTLE) {
+    // Handle dialogue advancement with Enter or Space
+    if (currentState === GameState.DIALOGUE) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            showNextDialogueLine();
+            return;
+        }
+        // Number keys for starter selection
+        if (e.key === '1') {
+            giveStarter('bulbasaur');
+            return;
+        } else if (e.key === '2') {
+            giveStarter('charmander');
+            return;
+        } else if (e.key === '3') {
+            giveStarter('squirtle');
+            return;
+        }
+        // Block other keys during dialogue
+        return;
+    }
+    
+    // Prevent movement during battle intro and battle
+    if (currentState === GameState.BATTLE_INTRO || currentState === GameState.BATTLE) {
         return;
     }
     
@@ -2630,17 +2657,6 @@ window.addEventListener('keydown', (e) => {
     // Handle arrow keys
     if (keys.hasOwnProperty(e.key)) {
         keys[e.key] = true;
-    }
-    
-    // Number keys for starter selection
-    if (currentState === GameState.DIALOGUE) {
-        if (e.key === '1') {
-            giveStarter('bulbasaur');
-        } else if (e.key === '2') {
-            giveStarter('charmander');
-        } else if (e.key === '3') {
-            giveStarter('squirtle');
-        }
     }
     
     // Escape to close menus
