@@ -1028,6 +1028,10 @@ function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = 
     document.getElementById('battle-ui').classList.add('active');
     document.getElementById('battle-menu').style.display = 'grid';
     document.getElementById('move-selection').classList.remove('active');
+    
+    // Hide menu button during battle
+    const menuBtn = document.getElementById('menu-btn');
+    if (menuBtn) menuBtn.style.display = 'none';
 
     // Show battle start message
     if (isTrainer) {
@@ -1501,6 +1505,10 @@ function endBattle(won, isTrainerBattle = false) {
         const moveSelection = document.getElementById('move-selection');
         if (battleUI) battleUI.classList.remove('active');
         if (moveSelection) moveSelection.classList.remove('active');
+        
+        // Show menu button after battle ends
+        const menuBtn = document.getElementById('menu-btn');
+        if (menuBtn) menuBtn.style.display = 'block';
     }, 1000);
 }
 
@@ -2388,7 +2396,14 @@ document.getElementById('battle-menu').addEventListener('click', (e) => {
 
 // Keyboard events
 window.addEventListener('keydown', (e) => {
-    if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.code)) {
+    // Handle WASD keys for movement - map to lowercase
+    const keyLower = e.key.toLowerCase();
+    if (keyLower === 'w' || keyLower === 's' || keyLower === 'a' || keyLower === 'd') {
+        keys[keyLower] = true;
+    }
+    
+    // Handle arrow keys
+    if (keys.hasOwnProperty(e.key)) {
         keys[e.key] = true;
     }
     
@@ -2407,6 +2422,7 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.getElementById('inventory-panel').classList.remove('active');
         document.getElementById('party-panel').classList.remove('active');
+        document.getElementById('menu-panel').classList.remove('active');
         if (currentState === GameState.MENU) {
             currentState = GameState.ROAMING;
         }
@@ -2414,6 +2430,12 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+    // Handle WASD key releases for smooth movement
+    const keyLower = e.key.toLowerCase();
+    if (keyLower === 'w' || keyLower === 's' || keyLower === 'a' || keyLower === 'd') {
+        keys[keyLower] = false;
+    }
+    
     if (keys.hasOwnProperty(e.key)) {
         keys[e.key] = false;
     }
@@ -2468,8 +2490,33 @@ async function init() {
         showLocationName('Pallet Town');
     }, 1000);
 
-    // Setup inventory button
+    // Setup menu button (opens menu panel)
+    const menuBtn = document.getElementById('menu-btn');
+    const menuPanel = document.getElementById('menu-panel');
+    
+    menuBtn.onclick = () => {
+        if (currentState === GameState.BATTLE) return; // Hide during battle
+        menuPanel.classList.toggle('active');
+    };
+    
+    // Menu panel buttons
+    document.getElementById('menu-party-btn').onclick = () => {
+        menuPanel.classList.remove('active');
+        toggleParty();
+    };
+    
+    document.getElementById('menu-bag-btn').onclick = () => {
+        menuPanel.classList.remove('active');
+        toggleInventory();
+    };
+    
+    document.getElementById('menu-close-btn').onclick = () => {
+        menuPanel.classList.remove('active');
+    };
+    
+    // Setup inventory button (hidden, accessed via menu)
     document.getElementById('inventory-btn').onclick = toggleInventory;
+    document.getElementById('party-btn').onclick = toggleParty;
     
     // Add click listener to enable audio context on first interaction
     document.addEventListener('click', () => {
