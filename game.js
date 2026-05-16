@@ -40,8 +40,8 @@ Object.values(soundEffects).forEach(audio => {
     audio.volume = 0.5;
 });
 
-// Make footsteps louder
-soundEffects['footstep'].volume = 0.8;
+// Make footsteps much louder
+soundEffects['footstep'].volume = 1.0;
 
 function playSound(soundName) {
     const sound = soundEffects[soundName];
@@ -1093,9 +1093,10 @@ function startBattle(enemyPokemonList, levels, isTrainer = false, trainerName = 
         const menuBtn = document.getElementById('menu-btn');
         if (menuBtn) menuBtn.style.display = 'none';
 
-        // Show battle start message
+        // Show battle start message - skip "wants to battle" for trainer battles since dialogue was already shown
         if (isTrainer) {
-            queueBattleMessage(`${trainerName} wants to battle!`);
+            // For trainer battles, we already showed their pre-battle dialogue, so just send out pokemon
+            queueBattleMessage(`${trainerName} sent out ${battleState.enemyPokemon.name}!`);
         } else {
             queueBattleMessage(`Wild ${battleState.enemyPokemon.name} appeared!`);
         }
@@ -2017,7 +2018,11 @@ function handleInteraction() {
         if (npc.battle) {
             // Start trainer battle - only if player has pokemon
             if (player.party.length > 0) {
-                startBattle(npc.battle.pokemon, npc.battle.pokemon.map(() => npc.battle.level), true, npc.name);
+                // Show trainer's pre-battle dialogue first, then start battle after dialogue ends
+                showDialogue(npc.name, npc.dialogue, () => {
+                    // Callback after dialogue finishes - now start the battle
+                    startBattle(npc.battle.pokemon, npc.battle.pokemon.map(() => npc.battle.level), true, npc.name);
+                });
             } else {
                 showDialogue(npc.name, [...npc.dialogue, 'But you have no Pokemon!']);
             }
@@ -2528,6 +2533,11 @@ document.getElementById('battle-menu').addEventListener('click', (e) => {
 
 // Keyboard events
 window.addEventListener('keydown', (e) => {
+    // Prevent movement during dialogue, battle intro, and battle
+    if (currentState === GameState.DIALOGUE || currentState === GameState.BATTLE_INTRO || currentState === GameState.BATTLE) {
+        return;
+    }
+    
     // Handle WASD keys for movement - map to lowercase
     const keyLower = e.key.toLowerCase();
     if (keyLower === 'w' || keyLower === 's' || keyLower === 'a' || keyLower === 'd') {
